@@ -1,4 +1,16 @@
 import { Projectile as SpacetimeDBProjectile } from '../../generated/types';
+import {
+  NPC_PROJECTILE_SPECTRAL_BOLT,
+  NPC_PROJECTILE_SPECTRAL_SHARD,
+  NPC_PROJECTILE_VENOM_SPITTLE,
+  PROJECTILE_GRAVITY,
+  PROJECTILE_SOURCE_MONUMENT_TURRET,
+  PROJECTILE_SOURCE_NPC,
+  PROJECTILE_SOURCE_PLAYER,
+  PROJECTILE_SOURCE_TURRET,
+} from '../../config/projectileConstants';
+import { sampleProjectileState } from '../projectileSampling';
+import { recordProjectileDebugEvent } from '../projectileDebug';
 
 // Full 64x64px rendering for all projectiles
 const DEFAULT_ARROW_SCALE = 0.7; // Full size arrows (Hunting Bow)
@@ -9,30 +21,18 @@ const WEAPON_THROWN_SCALE = 1.0; // Full size thrown weapons (melee weapons like
 const ARROW_SPRITE_OFFSET_X = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 const ARROW_SPRITE_OFFSET_Y = 0; // Pixels to offset drawing from calculated center, if sprite isn't centered
 
-const GRAVITY: number = 600.0; // Same as server-side
-
-// Projectile source type constants (must match server)
-const PROJECTILE_SOURCE_PLAYER = 0;
-const PROJECTILE_SOURCE_TURRET = 1;
-const PROJECTILE_SOURCE_NPC = 2;
-const PROJECTILE_SOURCE_MONUMENT_TURRET = 3;
-
-// NPC projectile type constants (must match server)
-const NPC_PROJECTILE_NONE = 0;
-const NPC_PROJECTILE_SPECTRAL_SHARD = 1;  // Shardkin: blue/purple ice shard
-const NPC_PROJECTILE_SPECTRAL_BOLT = 2;   // Shorebound: ghostly white bolt
-const NPC_PROJECTILE_VENOM_SPITTLE = 3;   // Viper: green toxic glob
-
 // Client-side projectile lifetime limits for cleanup (in case server is slow)
 const MAX_PROJECTILE_LIFETIME_MS = 12000; // 12 seconds max
 const MAX_PROJECTILE_DISTANCE = 1200; // Max distance before client cleanup
 const PROJECTILE_TRACKING_DELETE_GRACE_MS = 100; // Minimal grace for subscription churn; normal hit/delete is immediate
+const PROJECTILE_INITIAL_CATCHUP_WINDOW_MS = 120;
 
 // --- Client-side animation tracking for projectiles ---
 const clientProjectileStartTimes = new Map<string, number>(); // projectileId -> first-seen performance.now timestamp
 const clientProjectileInitialElapsedMs = new Map<string, number>(); // projectileId -> clamped estimated elapsed at first sight
 const projectileMissingSince = new Map<string, number>(); // projectileId -> first timestamp seen missing from current set
-const projectileLatchedImpactPoint = new Map<string, { x: number; y: number }>(); // projectileId -> first predicted impact point
+const projectileRenderCountsByFrame = new Map<string, number>();
+let lastProjectileRenderFrameBucket = -1;
 
 /** Collision circle for client-side projectile hit prediction (matches server radii) */
 export interface ProjectileCollisionCircle {
@@ -65,7 +65,7 @@ const HEARTH_R = 60; const HEARTH_Y = 5;
 const LIVING_CORAL_R = 25;
 
 /** Returns first impact point (x, y, t) where segment hits circle, or null. t in [0,1]. */
-function lineCircleFirstImpactPoint(
+export function lineCircleFirstImpactPoint(
   x1: number, y1: number, x2: number, y2: number,
   cx: number, cy: number, radius: number
 ): { x: number; y: number; t: number } | null {
@@ -98,6 +98,22 @@ interface RenderProjectileProps {
   collisionCircles?: ProjectileCollisionCircle[];
 }
 
+export function getProjectileTrackingKey(projectile: SpacetimeDBProjectile): string {
+  const clientShotId = projectile.clientShotId?.trim?.() ?? '';
+  return clientShotId.length > 0 ? clientShotId : projectile.id.toString();
+}
+
+function getClientShotTimestampMs(projectile: SpacetimeDBProjectile): number | null {
+  const clientShotId = projectile.clientShotId?.trim?.() ?? '';
+  if (!clientShotId) return null;
+
+  const parts = clientShotId.split(':');
+  if (parts.length < 3) return null;
+
+  const timestampMs = Number(parts[parts.length - 2]);
+  return Number.isFinite(timestampMs) ? timestampMs : null;
+}
+
 export const renderProjectile = ({
   ctx,
   projectile,
@@ -117,23 +133,46 @@ export const renderProjectile = ({
   const hasValidSprite = !!arrowImage && arrowImage.complete && arrowImage.naturalHeight > 0;
   const usePrimitiveSpriteFallback = !isNpcOrTurretProjectile && !hasValidSprite;
 
-  const projectileId = projectile.id.toString();
-  // Anchor to authoritative start_time, but clamp initial catch-up to avoid
-  // over-travel artifacts from clock skew or delayed first receipt.
+  const projectileId = getProjectileTrackingKey(projectile);
+  const frameBucket = Math.floor(currentTimeMs / 16.6667);
+  if (frameBucket !== lastProjectileRenderFrameBucket) {
+    projectileRenderCountsByFrame.clear();
+    lastProjectileRenderFrameBucket = frameBucket;
+  }
+  const renderCountThisFrame = (projectileRenderCountsByFrame.get(projectileId) ?? 0) + 1;
+  projectileRenderCountsByFrame.set(projectileId, renderCountThisFrame);
+  if (renderCountThisFrame === 2) {
+    recordProjectileDebugEvent('render-duplicate-same-key', {
+      projectileId,
+      sourceType: projectile.sourceType,
+      ownerId: projectile.ownerId?.toHexString?.(),
+      clientShotId: projectile.clientShotId?.trim?.() ?? '',
+      frameBucket,
+    });
+  }
+
+  // Anchor to authoritative timing, but ease late arrivals in from spawn instead
+  // of popping them halfway through the arc on first render.
   const serverStartMs = Number(projectile.startTime.microsSinceUnixEpoch / 1000n);
   let firstSeenPerfMs = clientProjectileStartTimes.get(projectileId);
-  let initialElapsedMs = clientProjectileInitialElapsedMs.get(projectileId);
-  if (firstSeenPerfMs === undefined || initialElapsedMs === undefined) {
+  let catchUpTargetMs = clientProjectileInitialElapsedMs.get(projectileId);
+  if (firstSeenPerfMs === undefined || catchUpTargetMs === undefined) {
     firstSeenPerfMs = currentTimeMs;
     clientProjectileStartTimes.set(projectileId, firstSeenPerfMs);
-    const estimatedElapsedMs = Date.now() - serverStartMs;
-    // Keep first-frame catch-up modest; prevents arrows appearing far ahead.
-    initialElapsedMs = Math.min(250, Math.max(0, estimatedElapsedMs));
-    clientProjectileInitialElapsedMs.set(projectileId, initialElapsedMs);
+    const shotTimestampMs = getClientShotTimestampMs(projectile);
+    const elapsedOriginMs = shotTimestampMs ?? serverStartMs;
+    const estimatedElapsedMs = Date.now() - elapsedOriginMs;
+    // Keep total reconciliation modest so long-latency shots do not overtake far ahead,
+    // but still allow the projectile to converge to the server timeline quickly.
+    catchUpTargetMs = Math.min(180, Math.max(0, estimatedElapsedMs));
+    clientProjectileInitialElapsedMs.set(projectileId, catchUpTargetMs);
   }
   const elapsedSinceFirstSeenMs = Math.max(0, currentTimeMs - firstSeenPerfMs);
-  const elapsedTimeSeconds = (initialElapsedMs + elapsedSinceFirstSeenMs) / 1000;
+  const catchUpProgress = Math.min(1, elapsedSinceFirstSeenMs / PROJECTILE_INITIAL_CATCHUP_WINDOW_MS);
+  const easedCatchUpMs = catchUpTargetMs * catchUpProgress;
+  const elapsedTimeSeconds = (elapsedSinceFirstSeenMs + easedCatchUpMs) / 1000;
   projectileMissingSince.delete(projectileId);
+  void collisionCircles;
   
   // Client-side safety checks to prevent projectiles from lingering indefinitely
   const distanceTraveled = Math.sqrt(
@@ -151,63 +190,36 @@ export const renderProjectile = ({
     clientProjectileStartTimes.delete(projectileId);
     clientProjectileInitialElapsedMs.delete(projectileId);
     projectileMissingSince.delete(projectileId);
-    projectileLatchedImpactPoint.delete(projectileId);
     return;
   }
   
-  // Check if this is a thrown item (ammo_def_id == item_def_id)
-  const isThrown = projectile.ammoDefId === projectile.itemDefId;
-  
-  // NOTE: isNpcOrTurretProjectile is already declared at the top of this function
-  // (moved there to skip image validation for NPC/turret projectiles)
-  
-  // FIXED: Determine gravity multiplier based on weapon type (matching server physics)
-  let gravityMultiplier = 1.0; // Default for bows
-  let isBullet = false; // Track if this is a bullet for smaller rendering
-  
-  // NPC and turret projectiles use no gravity - they travel in straight lines
-  if (isNpcOrTurretProjectile) {
-    gravityMultiplier = 0.0;
-  } else if (itemDefinitions) {
-    const weaponDef = itemDefinitions.get(projectile.itemDefId.toString());
-    if (weaponDef) {
-      if (weaponDef.name === "Crossbow" || weaponDef.name === "Hunting Bow") {
-        gravityMultiplier = 0.0; // Crossbow/Hunting Bow projectiles have NO gravity effect (straight line)
-      } else if (weaponDef.name === "Makarov PM" || weaponDef.name === "PP-91 KEDR") {
-        gravityMultiplier = 0.15; // Firearm projectiles have minimal gravity effect (fast arc)
-        isBullet = true;
+  const sampledState = sampleProjectileState(projectile, elapsedTimeSeconds, itemDefinitions);
+  let currentX = sampledState.x;
+  let currentY = sampledState.y;
+  const isThrown = sampledState.isThrown;
+  const isBullet = sampledState.isBullet;
+
+  if (projectile.sourceType === PROJECTILE_SOURCE_PLAYER && collisionCircles && collisionCircles.length > 0) {
+    const ownerId = projectile.ownerId?.toHexString?.();
+    let closestHit: { x: number; y: number; t: number } | null = null;
+    for (const { cx, cy, radius, ownerIdentity } of collisionCircles) {
+      if (ownerIdentity && ownerId && ownerIdentity === ownerId) continue;
+      const hit = lineCircleFirstImpactPoint(
+        projectile.startPosX,
+        projectile.startPosY,
+        currentX,
+        currentY,
+        cx,
+        cy,
+        radius,
+      );
+      if (hit && (!closestHit || hit.t < closestHit.t)) {
+        closestHit = hit;
       }
     }
-  }
-  
-  // Calculate current position with sub-pixel precision
-  let currentX = projectile.startPosX + (projectile.velocityX * elapsedTimeSeconds);
-  // FIXED: Apply gravity with correct multiplier based on weapon type
-  const finalGravityMultiplier = isThrown ? 0.0 : gravityMultiplier;
-  const gravityEffect = 0.5 * GRAVITY * finalGravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
-  let currentY = projectile.startPosY + (projectile.velocityY * elapsedTimeSeconds) + gravityEffect;
-
-  // Client-side collision prediction: latch at first hit so moving targets don't "unstick" arrows.
-  const latchedImpact = projectileLatchedImpactPoint.get(projectileId);
-  if (latchedImpact) {
-    currentX = latchedImpact.x;
-    currentY = latchedImpact.y;
-  } else {
-    const ownerId = projectile.ownerId?.toHexString?.();
-    if (collisionCircles && collisionCircles.length > 0) {
-      let closestHit: { x: number; y: number; t: number } | null = null;
-      for (const { cx, cy, radius, ownerIdentity } of collisionCircles) {
-        if (ownerIdentity && ownerId && ownerIdentity === ownerId) continue;
-        const hit = lineCircleFirstImpactPoint(
-          projectile.startPosX, projectile.startPosY, currentX, currentY, cx, cy, radius
-        );
-        if (hit && (!closestHit || hit.t < closestHit.t)) closestHit = hit;
-      }
-      if (closestHit) {
-        projectileLatchedImpactPoint.set(projectileId, { x: closestHit.x, y: closestHit.y });
-        currentX = closestHit.x;
-        currentY = closestHit.y;
-      }
+    if (closestHit) {
+      currentX = closestHit.x;
+      currentY = closestHit.y;
     }
   }
 
@@ -235,9 +247,7 @@ export const renderProjectile = ({
       angle = baseAngle + spinAngle;
     }
   } else {
-    // FIXED: Calculate rotation based on instantaneous velocity vector with correct gravity
-    const instantaneousVelocityY = projectile.velocityY + GRAVITY * finalGravityMultiplier * elapsedTimeSeconds;
-    angle = Math.atan2(instantaneousVelocityY, projectile.velocityX) + (Math.PI / 4);
+    angle = Math.atan2(sampledState.instantaneousVelocityY, projectile.velocityX) + (Math.PI / 4);
   }
 
   // Determine scale dynamically based on item definition to match equipped item rendering
@@ -486,7 +496,7 @@ export const renderProjectile = ({
   if (isTurretTallow) {
     // Regular turret tallow has full gravity (molten globs arc), monument turrets fire straight
     const tallowGravityMultiplier = projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET ? 0.0 : 1.0;
-    const tallowGravityEffect = 0.5 * GRAVITY * tallowGravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
+    const tallowGravityEffect = 0.5 * PROJECTILE_GRAVITY * tallowGravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
     const tallowCurrentY = projectile.startPosY + (projectile.velocityY * elapsedTimeSeconds) + tallowGravityEffect;
     
     // Render tallow glob as a glowing orange circle with particle trail
@@ -501,7 +511,7 @@ export const renderProjectile = ({
       if (trailTime < 0) continue;
       
       const trailX = projectile.startPosX + (projectile.velocityX * trailTime);
-      const trailGravityEffect = 0.5 * GRAVITY * tallowGravityMultiplier * trailTime * trailTime;
+      const trailGravityEffect = 0.5 * PROJECTILE_GRAVITY * tallowGravityMultiplier * trailTime * trailTime;
       const trailY = projectile.startPosY + (projectile.velocityY * trailTime) + trailGravityEffect;
       
       trailPositions.push({
@@ -716,7 +726,6 @@ export const cleanupProjectileTrackingForDeleted = (currentProjectileIds: Set<st
       clientProjectileStartTimes.delete(projectileId);
       clientProjectileInitialElapsedMs.delete(projectileId);
       projectileMissingSince.delete(projectileId);
-      projectileLatchedImpactPoint.delete(projectileId);
       removed += 1;
     }
   }
@@ -738,7 +747,6 @@ export const cleanupOldProjectileTracking = () => {
     clientProjectileStartTimes.delete(projectileId);
     clientProjectileInitialElapsedMs.delete(projectileId);
     projectileMissingSince.delete(projectileId);
-    projectileLatchedImpactPoint.delete(projectileId);
   }
   
   if (toDelete.length > 0) {

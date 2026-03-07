@@ -1,6 +1,8 @@
 // Unified Interaction System Types and Utilities
 // This file defines the single target approach for all interactions
 
+import { HOLD_INTERACTION_DURATION_MS, REVIVE_HOLD_DURATION_MS } from '../config/gameConfig';
+
 // Comprehensive interaction target type that can represent any interactable entity
 export interface InteractableTarget {
     // Core identification
@@ -140,13 +142,13 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
     // Hold actions - require holding E key
     knocked_out_player: {
         behavior: InteractionBehavior.HOLD,
-        holdDurationMs: 3000, // 3 seconds for reviving
+        holdDurationMs: REVIVE_HOLD_DURATION_MS,
         priority: 110, // Highest priority - helping players is important
         actionType: 'revive_player'
     },
     water: {
         behavior: InteractionBehavior.HOLD,
-        holdDurationMs: 250, // 250ms for drinking water
+        holdDurationMs: HOLD_INTERACTION_DURATION_MS,
         priority: 85, // Lower than corpses (90), dropped items (95), and harvestable resources (100)
         actionType: 'drink_water'
     },

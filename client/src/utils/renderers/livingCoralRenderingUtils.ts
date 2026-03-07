@@ -26,7 +26,6 @@ export function triggerCoralShakeOptimistic(coralId: string, posX: number, posY:
   const now = Date.now();
   clientCoralShakeStartTimes.set(coralId, now);
   lastKnownServerCoralShakeTimes.set(coralId, now);
-  triggerCoralHitEffect(coralId, posX, posY, variantIndex);
 }
 
 // ============================================================================

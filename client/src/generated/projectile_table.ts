@@ -12,6 +12,7 @@ import {
 
 export default __t.row({
   id: __t.u64().primaryKey(),
+  clientShotId: __t.string().name("client_shot_id"),
   ownerId: __t.identity().name("owner_id"),
   itemDefId: __t.u64().name("item_def_id"),
   ammoDefId: __t.u64().name("ammo_def_id"),

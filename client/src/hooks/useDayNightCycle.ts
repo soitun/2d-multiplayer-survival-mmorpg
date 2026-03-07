@@ -19,7 +19,7 @@ import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADI
 import { ROAD_LAMP_LIGHT_RADIUS_BASE, ROAD_LAMP_LIGHT_Y_OFFSET } from '../utils/renderers/roadLamppostRenderingUtils';
 import { BUOY_HEIGHT } from '../utils/renderers/barrelRenderingUtils';
 import { BUOY_LIGHT_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
-import { isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../config/dayNightConstants';
+import { FULL_MOON_CYCLE_INTERVAL, isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../config/dayNightConstants';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT, LANTERN_RENDER_Y_OFFSET, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET, getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils';
@@ -206,9 +206,6 @@ const FULL_MOON_NIGHT_KEYFRAMES: ColorAlphaKeyframe[] = [
   { progress: 1.0, rgb: [180, 170, 200],  alpha: 0.22 },   // Silver-lavender (matches 0.0)
 ];
 
-// Server's full moon cycle interval
-const SERVER_FULL_MOON_INTERVAL = 3;
-
 // --- Indoor Light Containment Utilities ---
 
 /**
@@ -331,7 +328,7 @@ function calculateOverlayRgbaString(
     const REGULAR_DAWN_PEAK_PROGRESS = REGULAR_CYCLE_KEYFRAMES.find(kf => kf.progress === 0.125)?.progress ?? 0.125; // Updated to match new sunrise peak
 
     // --- Special Transition 1: Full Moon cycle STARTS, but PREVIOUS was Regular (or first cycle) ---
-    const prevCycleWasRegularOrDefault = currentCycleCount === 0 || ((currentCycleCount - 1) % SERVER_FULL_MOON_INTERVAL !== 0);
+    const prevCycleWasRegularOrDefault = currentCycleCount === 0 || ((currentCycleCount - 1) % FULL_MOON_CYCLE_INTERVAL !== 0);
     if (isCurrentlyFullMoon && cycleProgress < GRACE_PERIOD_END_PROGRESS && prevCycleWasRegularOrDefault) {
         const fromKf = REGULAR_CYCLE_KEYFRAMES[0]; // Regular dark midnight
         const toKf = FULL_MOON_NIGHT_KEYFRAMES[0];   // Target: Full moon bright midnight
@@ -349,7 +346,7 @@ function calculateOverlayRgbaString(
     }
 
     // --- Special Transition 2: Regular cycle STARTS, but PREVIOUS was Full Moon ---
-    const prevCycleWasFullMoon = currentCycleCount > 0 && ((currentCycleCount - 1) % SERVER_FULL_MOON_INTERVAL === 0);
+    const prevCycleWasFullMoon = currentCycleCount > 0 && ((currentCycleCount - 1) % FULL_MOON_CYCLE_INTERVAL === 0);
     if (!isCurrentlyFullMoon && cycleProgress < REGULAR_DAWN_PEAK_PROGRESS && prevCycleWasFullMoon) {
         const fromKf = FULL_MOON_NIGHT_KEYFRAMES[FULL_MOON_NIGHT_KEYFRAMES.length - 1]; 
         const toKf = REGULAR_CYCLE_KEYFRAMES.find(kf => kf.progress === REGULAR_DAWN_PEAK_PROGRESS) ?? REGULAR_CYCLE_KEYFRAMES[1]; 

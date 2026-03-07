@@ -6,6 +6,7 @@ import {
     ANIMAL_COLLISION_SIZES
 } from '../animalCollisionUtils';
 import { UNDERWATER_TINT_FILTER } from './underwaterEffectsUtils';
+import { drawShorelineWaterLine, drawUnderwaterShadowOnly } from './swimmingEffectsUtils';
 
 // Import breeding data types for age-based rendering
 import type { CaribouBreedingData, WalrusBreedingData, CaribouAgeStage, WalrusAgeStage } from '../../generated/types';
@@ -559,6 +560,7 @@ interface WildAnimalRenderProps {
     animationFrame?: number;
     localPlayerPosition?: { x: number; y: number } | null;
     isLocalPlayerSnorkeling?: boolean; // For underwater rendering (sharks always underwater)
+    isOnWaterTile?: (worldX: number, worldY: number) => boolean;
     // Breeding data for age-based sizing and pregnancy indicators
     caribouBreedingData?: Map<string, CaribouBreedingData>;
     walrusBreedingData?: Map<string, WalrusBreedingData>;
@@ -730,7 +732,7 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // Vipers are larger snakes
             return { width: 96, height: 96, shadowRadius: 28 };
         case 'BeachCrab':
-            return { width: 64, height: 64, shadowRadius: 20 };
+            return { width: 64, height: 64, shadowRadius: 0 };
         case 'Tern':
             // Terns are small coastal seabirds
             return { width: 64, height: 64, shadowRadius: 20 };
@@ -798,6 +800,7 @@ export function renderWildAnimal({
     animationFrame = 0,
     localPlayerPosition,
     isLocalPlayerSnorkeling = false,
+    isOnWaterTile,
     caribouBreedingData,
     walrusBreedingData
 }: WildAnimalRenderProps) {
@@ -1085,6 +1088,8 @@ export function renderWildAnimal({
     }
 
     // Render shadow - flying birds get special detached oval shadows
+    const isCrabOnWater = animal.species.tag === 'BeachCrab' && isOnWaterTile?.(renderPosX, renderPosY) === true;
+
     // Skip shadow for entities with shadowRadius 0 (bees, sharks)
     if (props.shadowRadius > 0) {
         ctx.save();
@@ -1314,6 +1319,19 @@ export function renderWildAnimal({
                     offscreenCtx.globalCompositeOperation = 'source-over';
                 }
 
+                if (isCrabOnWater) {
+                    drawUnderwaterShadowOnly(
+                        ctx,
+                        animalImage,
+                        sx,
+                        sy,
+                        renderX,
+                        renderY,
+                        renderWidth,
+                        renderHeight,
+                    );
+                }
+
                 // Draw the frame to main canvas (scaled to animal size)
                 ctx.drawImage(
                     offscreenCanvas,
@@ -1454,6 +1472,17 @@ export function renderWildAnimal({
         if (viewingJellyfishFromAbove && !useImageFallback) {
             // Already handled in the main rendering with the shark logic
         }
+    }
+
+    if (isCrabOnWater) {
+        drawShorelineWaterLine(
+            ctx,
+            renderPosX + shakeX,
+            renderPosY + shakeY - renderHeight * 0.08,
+            renderWidth * 0.9,
+            renderHeight * 0.9,
+            nowMs,
+        );
     }
 
     ctx.restore();

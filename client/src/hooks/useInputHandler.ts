@@ -43,7 +43,8 @@ import { PlacementItemInfo, PlacementActions } from './usePlacementManager'; // 
 import { BuildingMode } from './useBuildingManager'; // ADDED: Building mode enum
 import React from 'react';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
-import { JUMP_DURATION_MS, JUMP_HEIGHT_PX, HOLD_INTERACTION_DURATION_MS } from '../config/gameConfig'; // <<< ADDED IMPORT
+import { JUMP_DURATION_MS, JUMP_HEIGHT_PX, HOLD_INTERACTION_DURATION_MS, REVIVE_HOLD_DURATION_MS } from '../config/gameConfig';
+import { DEFAULT_MELEE_ATTACK_RANGE, SPEAR_MELEE_ATTACK_RANGE } from '../config/combatConstants';
 import { isPlacementTooFar } from '../utils/renderers/placementRenderingUtils';
 import { 
     InteractableTarget, 
@@ -78,7 +79,7 @@ import { playImmediateSound } from './useSoundSystem';
 import { Cairn as SpacetimeDBCairn } from '../generated/types';
 import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount, stopCairnLoreAudio } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
-import { registerLocalPlayerSwing } from '../utils/renderers/equippedItemRenderingUtils';
+import { registerLocalPlayerRangedShot, registerLocalPlayerSwing } from '../utils/renderers/equippedItemRenderingUtils';
 import { triggerTreeShakeOptimistic } from '../utils/renderers/treeRenderingUtils';
 import { triggerStoneShakeOptimistic, getStoneOreType } from '../utils/renderers/stoneRenderingUtils';
 import { triggerCoralShakeOptimistic } from '../utils/renderers/livingCoralRenderingUtils';
@@ -88,18 +89,13 @@ import { triggerPlayerCorpseShakeOptimistic } from '../utils/renderers/playerCor
 import { triggerPlayerShakeOptimistic } from '../utils/renderers/playerRenderingUtils';
 import { triggerAnimalShakeOptimistic } from '../utils/renderers/wildAnimalRenderingUtils';
 
-// Ensure HOLD_INTERACTION_DURATION_MS is defined locally if not already present
-// If it was already defined (e.g., as `const HOLD_INTERACTION_DURATION_MS = 250;`), this won't change it.
-// If it was missing, this adds it.
-export const REVIVE_HOLD_DURATION_MS = 3000; // 3 seconds for reviving knocked out players
-
 // --- Constants (Copied from GameCanvas) ---
 const SWING_COOLDOWN_MS = 500;
 const PLAYER_RADIUS = 32;
 const TREE_COLLISION_Y_OFFSET = 60; // Match server tree.rs
-const OPTIMISTIC_AXE_RANGE = PLAYER_RADIUS * 4.5; // ~144px - match server active_equipment.rs
-const OPTIMISTIC_PICK_RANGE = PLAYER_RADIUS * 4.5; // ~144px
-const OPTIMISTIC_SPEAR_RANGE = PLAYER_RADIUS * 8; // ~256px - spears have longest reach
+const OPTIMISTIC_AXE_RANGE = DEFAULT_MELEE_ATTACK_RANGE;
+const OPTIMISTIC_PICK_RANGE = DEFAULT_MELEE_ATTACK_RANGE;
+const OPTIMISTIC_SPEAR_RANGE = SPEAR_MELEE_ATTACK_RANGE;
 
 // Define a comprehensive props interface for the hook
 interface InputHandlerProps {
@@ -338,10 +334,8 @@ export const useInputHandler = ({
     const targetedFenceRef = useLatest(targetedFence);
     const itemDefinitionsRef = useLatest(itemDefinitions);
     const rangedWeaponStatsRef = useLatest(rangedWeaponStats); // ADDED: Ref for ranged weapon stats
-    const serverProjectilesRef = useLatest(serverProjectiles);
     const optimisticProjectileSeqRef = useRef<number>(0);
     const optimisticProjectileCleanupTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-    const optimisticProjectileMetaRef = useRef<Map<string, { createdAtMs: number; matchedServerId?: string; velocityX?: number; velocityY?: number }>>(new Map());
     const lastOptimisticSpawnRef = useRef<{ at: number; fireX: number; fireY: number; targetX: number; targetY: number } | null>(null);
 
     // Add after existing refs in the hook
@@ -418,6 +412,11 @@ export const useInputHandler = ({
         }
     }, [showBuildingRadialMenu]);
 
+    const createClientShotId = useCallback(() => {
+        const seq = optimisticProjectileSeqRef.current++;
+        return `${localPlayerId ?? 'local'}:${Date.now()}:${seq}`;
+    }, [localPlayerId]);
+
     const spawnOptimisticProjectile = useCallback((
         targetX: number,
         targetY: number,
@@ -428,7 +427,9 @@ export const useInputHandler = ({
         weaponName: string | undefined,
         allowAmmoFallbackToEquipped: boolean = false,
         forcedProjectileSpeed?: number,
-        forcedMaxRange?: number
+        forcedMaxRange?: number,
+        clientShotId?: string,
+        forcedLifetimeMs?: number,
     ) => {
         const player = localPlayerRef.current;
         if (!player) return;
@@ -463,11 +464,13 @@ export const useInputHandler = ({
         lastOptimisticSpawnRef.current = { at: nowMs, fireX, fireY, targetX, targetY };
 
         const seq = optimisticProjectileSeqRef.current++;
+        const shotId = clientShotId ?? createClientShotId();
         const syntheticId = 9_000_000_000_000_000_000n + BigInt(nowMs) * 1000n + BigInt(seq % 1000);
-        const key = `opt-${syntheticId.toString()}`;
+        const key = shotId;
 
         const optimisticProjectile: Projectile = {
             id: syntheticId,
+            clientShotId: shotId,
             ownerId: player.identity,
             itemDefId: equippedItemDefId,
             ammoDefId: resolvedAmmoDefId,
@@ -486,11 +489,10 @@ export const useInputHandler = ({
             next.set(key, optimisticProjectile);
             return next;
         });
-        optimisticProjectileMetaRef.current.set(key, { createdAtMs: nowMs, velocityX, velocityY });
 
         const existingTimer = optimisticProjectileCleanupTimersRef.current.get(key);
         if (existingTimer) clearTimeout(existingTimer);
-        const estimatedFlightMs = Math.min(
+        const estimatedFlightMs = forcedLifetimeMs ?? Math.min(
             2200,
             Math.max(500, ((optimisticProjectile.maxRange / Math.max(projectileSpeed, 1)) * 1000) + 250)
         );
@@ -502,134 +504,49 @@ export const useInputHandler = ({
                 return next;
             });
             optimisticProjectileCleanupTimersRef.current.delete(key);
-            optimisticProjectileMetaRef.current.delete(key);
         }, estimatedFlightMs);
         optimisticProjectileCleanupTimersRef.current.set(key, timer);
-    }, [localPlayerRef, rangedWeaponStatsRef]);
-
-    // Lifecycle reconciliation: match optimistic→server deterministically, retire immediately when
-    // authoritative projectile is removed (hit/range). Stricter matching: 400ms window, 24px pos, velocity.
-    useEffect(() => {
-        if (!localPlayerId || optimisticProjectiles.size === 0) return;
-        const serverMap = serverProjectiles ?? serverProjectilesRef.current;
-        if (!serverMap) return;
-
-        const localServerProjectiles = new Map<string, Projectile>();
-        for (const [id, projectile] of serverMap.entries()) {
-            const ownerId =
-                typeof (projectile as any).ownerId === 'string'
-                    ? (projectile as any).ownerId
-                    : projectile.ownerId?.toHexString?.();
-            if (projectile.sourceType === 0 && ownerId === localPlayerId) {
-                localServerProjectiles.set(id, projectile);
-            }
-        }
-
-        const keysToRemove: string[] = [];
-
-        optimisticProjectiles.forEach((optimisticProjectile, key) => {
-            const meta = optimisticProjectileMetaRef.current.get(key);
-            if (!meta) return;
-
-            if (meta.matchedServerId) {
-                if (!localServerProjectiles.has(meta.matchedServerId)) {
-                    keysToRemove.push(key);
-                }
-                return;
-            }
-
-            for (const [serverId, serverProjectile] of localServerProjectiles.entries()) {
-                const serverStartMs = Number(serverProjectile.startTime.microsSinceUnixEpoch / 1000n);
-                if (Math.abs(serverStartMs - meta.createdAtMs) > 400) continue;
-                if (serverProjectile.ammoDefId !== optimisticProjectile.ammoDefId) continue;
-                const dx = serverProjectile.startPosX - optimisticProjectile.startPosX;
-                const dy = serverProjectile.startPosY - optimisticProjectile.startPosY;
-                if ((dx * dx + dy * dy) > (24 * 24)) continue;
-                if (meta.velocityX != null && meta.velocityY != null) {
-                    const optSpeed = Math.hypot(meta.velocityX, meta.velocityY);
-                    const srvSpeed = Math.hypot(serverProjectile.velocityX, serverProjectile.velocityY);
-                    if (optSpeed > 1 && Math.abs(optSpeed - srvSpeed) / optSpeed > 0.15) continue;
-                }
-                meta.matchedServerId = serverId;
-                optimisticProjectileMetaRef.current.set(key, meta);
-                break;
-            }
-        });
-
-        if (keysToRemove.length > 0) {
-            setOptimisticProjectiles(prev => {
-                const next = new Map(prev);
-                for (const key of keysToRemove) {
-                    next.delete(key);
-                    const timer = optimisticProjectileCleanupTimersRef.current.get(key);
-                    if (timer) clearTimeout(timer);
-                    optimisticProjectileCleanupTimersRef.current.delete(key);
-                    optimisticProjectileMetaRef.current.delete(key);
-                }
-                return next;
-            });
-        }
-    }, [localPlayerId, optimisticProjectiles, serverProjectiles]);
-
-    // Filter optimistics for rendering: exclude those whose matched server projectile is gone.
-    // Ensures no pass-through visuals when server deletes projectile (hit/range).
-    const filteredOptimisticProjectiles = useMemo(() => {
-        if (!localPlayerId || optimisticProjectiles.size === 0) return optimisticProjectiles;
-        const serverMap = serverProjectiles ?? serverProjectilesRef.current;
-        if (!serverMap) return optimisticProjectiles;
-        const localServerIds = new Set<string>();
-        const localServerProjectiles: Projectile[] = [];
-        for (const [id, p] of serverMap.entries()) {
-            const ownerId =
-                typeof (p as any).ownerId === 'string'
-                    ? (p as any).ownerId
-                    : p.ownerId?.toHexString?.();
-            if (p.sourceType === 0 && ownerId === localPlayerId) {
-                localServerIds.add(id);
-                localServerProjectiles.push(p);
-            }
-        }
-        const filtered = new Map<string, Projectile>();
-        optimisticProjectiles.forEach((opt, key) => {
-            const meta = optimisticProjectileMetaRef.current.get(key);
-            if (!meta) {
-                filtered.set(key, opt);
-                return;
-            }
-            if (!meta?.matchedServerId) {
-                // Fallback suppression: if strict matching missed, hide optimistic that clearly overlaps
-                // a just-spawned authoritative projectile from this player.
-                const nearAuthoritativeTwin = localServerProjectiles.some((serverProjectile) => {
-                    if (serverProjectile.ammoDefId !== opt.ammoDefId) return false;
-                    const serverStartMs = Number(serverProjectile.startTime.microsSinceUnixEpoch / 1000n);
-                    if (Math.abs(serverStartMs - meta.createdAtMs) > 700) return false;
-                    const dx = serverProjectile.startPosX - opt.startPosX;
-                    const dy = serverProjectile.startPosY - opt.startPosY;
-                    if ((dx * dx + dy * dy) > (40 * 40)) return false;
-                    if (meta.velocityX != null && meta.velocityY != null) {
-                        const optSpeed = Math.hypot(meta.velocityX, meta.velocityY);
-                        const srvSpeed = Math.hypot(serverProjectile.velocityX, serverProjectile.velocityY);
-                        if (optSpeed > 1 && Math.abs(optSpeed - srvSpeed) / optSpeed > 0.25) return false;
-                    }
-                    return true;
-                });
-                if (!nearAuthoritativeTwin) filtered.set(key, opt);
-                return;
-            }
-            // Exclude matched optimistics when server projectile exists - only server renders
-            if (localServerIds.has(meta.matchedServerId)) return;
-            filtered.set(key, opt);
-        });
-        return filtered;
-    }, [localPlayerId, optimisticProjectiles, serverProjectiles]);
+    }, [createClientShotId, localPlayerRef, rangedWeaponStatsRef]);
 
     useEffect(() => {
         return () => {
             optimisticProjectileCleanupTimersRef.current.forEach(timer => clearTimeout(timer));
             optimisticProjectileCleanupTimersRef.current.clear();
-            optimisticProjectileMetaRef.current.clear();
         };
     }, []);
+
+    useEffect(() => {
+        if (!localPlayerId || optimisticProjectiles.size === 0 || !serverProjectiles || serverProjectiles.size === 0) {
+            return;
+        }
+
+        const authoritativeLocalShotIds = new Set<string>();
+        serverProjectiles.forEach((projectile) => {
+            const ownerId =
+                typeof (projectile as any).ownerId === 'string'
+                    ? (projectile as any).ownerId
+                    : projectile.ownerId?.toHexString?.();
+            if (ownerId !== localPlayerId || projectile.sourceType !== 0) return;
+            const clientShotId = projectile.clientShotId?.trim?.() ?? '';
+            if (clientShotId) authoritativeLocalShotIds.add(clientShotId);
+        });
+
+        if (authoritativeLocalShotIds.size === 0) return;
+
+        setOptimisticProjectiles(prev => {
+            let changed = false;
+            const next = new Map(prev);
+            authoritativeLocalShotIds.forEach((shotId) => {
+                if (!next.has(shotId)) return;
+                changed = true;
+                next.delete(shotId);
+                const timer = optimisticProjectileCleanupTimersRef.current.get(shotId);
+                if (timer) clearTimeout(timer);
+                optimisticProjectileCleanupTimersRef.current.delete(shotId);
+            });
+            return changed ? next : prev;
+        });
+    }, [localPlayerId, optimisticProjectiles.size, serverProjectiles]);
 
     // FIX: Play cairn_unlock sound only on actual first discovery (after server confirms)
     // Track which cairns we've already played sound for to prevent duplicates
@@ -913,21 +830,21 @@ export const useInputHandler = ({
                     treesRef.current?.forEach((tree) => {
                         if (tree.health === 0) return;
                         const { inCone, distSq } = isInAttackCone(px, py, dir, tree.posX, tree.posY, TREE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerTreeShakeOptimistic(tree.id.toString(), tree.posX, tree.posY); playImmediateSound('tree_chop', 0.5); } };
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerTreeShakeOptimistic(tree.id.toString(), tree.posX, tree.posY); } };
                     });
                     // Stones - any weapon can hit
                     const STONE_COLLISION_Y_OFFSET = 50;
                     stonesRef.current?.forEach((stone) => {
                         if (stone.health === 0) return;
                         const { inCone, distSq } = isInAttackCone(px, py, dir, stone.posX, stone.posY, STONE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerStoneShakeOptimistic(stone.id.toString(), stone.posX, stone.posY, getStoneOreType(stone as any)); playImmediateSound('stone_hit', 0.5); } };
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerStoneShakeOptimistic(stone.id.toString(), stone.posX, stone.posY, getStoneOreType(stone as any)); } };
                     });
                     // Corals - only when snorkeling (underwater)
                     if (player.isSnorkeling) {
                         const CORAL_COLLISION_Y_OFFSET = 60;
                         livingCoralsRef.current?.forEach((coral) => {
                             const { inCone, distSq } = isInAttackCone(px, py, dir, coral.posX, coral.posY, CORAL_COLLISION_Y_OFFSET, OPTIMISTIC_SPEAR_RANGE, 60);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4); playImmediateSound('stone_hit', 0.5); } };
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4); } };
                         });
                     }
                     // Barrels - any weapon can hit (variant 6 = buoy uses different collision offset)
@@ -936,7 +853,7 @@ export const useInputHandler = ({
                         const barrelVariant = (barrel as { variant?: number }).variant ?? 0;
                         const barrelCollisionYOffset = barrelVariant === 6 ? 110 : barrelVariant === 4 ? 96 : 48;
                         const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, barrelCollisionYOffset, attackRange, attackAngle);
-                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerBarrelShakeOptimistic(barrel.id.toString()); playImmediateSound('barrel_hit', 0.5); } };
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerBarrelShakeOptimistic(barrel.id.toString()); } };
                     });
                     // Animal corpses - any weapon can hit
                     const ANIMAL_CORPSE_COLLISION_Y_OFFSET = 8;
@@ -994,20 +911,14 @@ export const useInputHandler = ({
         const fallbackPos = predictedPositionRef.current;
         const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
         const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
-        spawnOptimisticProjectile(
-            worldMousePosRefInternal.current.x,
-            worldMousePosRefInternal.current.y,
-            fireX,
-            fireY,
-            eq.equippedItemDefId,
-            eq.loadedAmmoDefId,
-            itemDef.name
-        );
+        const clientShotId = createClientShotId();
+        registerLocalPlayerRangedShot(itemDef.name);
         connectionRef.current.reducers.fireProjectile({
             targetWorldX: worldMousePosRefInternal.current.x,
             targetWorldY: worldMousePosRefInternal.current.y,
             clientPlayerX: fireX,
             clientPlayerY: fireY,
+            clientShotId,
         });
         lastRangedFireTimeRef.current = now;
     }, [localPlayerId, spawnOptimisticProjectile]);
@@ -2436,6 +2347,7 @@ export const useInputHandler = ({
                         const exactThrowPos = getCurrentPositionNowRef.current?.();
                         const throwX = exactThrowPos?.x ?? predictedPositionRef.current?.x ?? player.positionX;
                         const throwY = exactThrowPos?.y ?? predictedPositionRef.current?.y ?? player.positionY;
+                        const clientShotId = createClientShotId();
                         spawnOptimisticProjectile(
                             targetX,
                             targetY,
@@ -2446,9 +2358,16 @@ export const useInputHandler = ({
                             equippedItemDef.name,
                             true,
                             800, // Match server throw_item THROWING_SPEED
-                            400 // Match server throw_item max_range
+                            400, // Match server throw_item max_range
+                            clientShotId
                         );
-                        connectionRef.current.reducers.throwItem({ targetWorldX: targetX, targetWorldY: targetY });
+                        connectionRef.current.reducers.throwItem({
+                            targetWorldX: targetX,
+                            targetWorldY: targetY,
+                            clientPlayerX: throwX,
+                            clientPlayerY: throwY,
+                            clientShotId,
+                        });
                         console.log("[ThrowAim] Item thrown successfully!");
                     } catch (err) {
                         console.error("[ThrowAim] Error throwing item:", err);
@@ -2801,7 +2720,7 @@ export const useInputHandler = ({
         setShowBuildingRadialMenu, // Expose setter so parent can close menu
         showUpgradeRadialMenu,
         setShowUpgradeRadialMenu,
-        optimisticProjectiles: filteredOptimisticProjectiles,
+        optimisticProjectiles,
         processInputsAndActions,
     };
 }; 

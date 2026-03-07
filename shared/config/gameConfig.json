@@ -1,0 +1,72 @@
+{
+  "world": {
+    "tileSizePx": 48,
+    "foundationTileSizePx": 96,
+    "widthTiles": 800,
+    "heightTiles": 800,
+    "chunkSizeTiles": 16,
+    "deepSeaEdgeTiles": 70
+  },
+  "player": {
+    "radiusPx": 32.0,
+    "speedPxPerSecond": 320.0,
+    "sprintMultiplier": 1.75,
+    "crouchRadiusMultiplier": 0.5,
+    "waterSpeedPenalty": 0.5
+  },
+  "interaction": {
+    "holdDurationMs": 250,
+    "reviveHoldDurationMs": 3000
+  },
+  "broth": {
+    "brewingWaterRequirementMl": 250,
+    "maxWaterCapacityMl": 5000
+  },
+  "projectiles": {
+    "gravity": 600.0,
+    "straightLineGravityMultiplier": 0.0,
+    "firearmGravityMultiplier": 0.15,
+    "playerHitRadius": 48.0,
+    "npcPlayerHitRadius": 64.0,
+    "sourceTypes": {
+      "player": 0,
+      "turret": 1,
+      "npc": 2,
+      "monumentTurret": 3
+    },
+    "npcTypes": {
+      "none": 0,
+      "spectralShard": 1,
+      "spectralBolt": 2,
+      "venomSpittle": 3
+    }
+  },
+  "combat": {
+    "exhaustedSpeedPenalty": 0.75,
+    "remoteHealingRangePx": 128.0,
+    "dodgeRollDistancePx": 450.0,
+    "dodgeRollDurationMs": 500,
+    "dodgeRollCooldownMs": 500,
+    "defaultMeleeRangeMultiplier": 4.5,
+    "spearMeleeRangeMultiplier": 8.0,
+    "scytheMeleeRangeMultiplier": 7.0,
+    "defaultMeleeArcDegrees": 90.0,
+    "spearMeleeArcDegrees": 60.0,
+    "scytheMeleeArcDegrees": 150.0
+  },
+  "dayNight": {
+    "dayDurationSeconds": 1200.0,
+    "nightDurationSeconds": 600.0,
+    "fullMoonCycleInterval": 3,
+    "dawnEndProgress": 0.05,
+    "morningClearProgress": 0.15,
+    "noonStartProgress": 0.35,
+    "afternoonStartProgress": 0.55,
+    "duskStartProgress": 0.72,
+    "twilightEveningStartProgress": 0.76,
+    "nightStartProgress": 0.8,
+    "midnightStartProgress": 0.92,
+    "twilightMorningStartProgress": 0.97,
+    "cycleEndProgress": 1.0
+  }
+}

@@ -8,6 +8,8 @@ import {
 import { Particle } from './useCampfireParticles'; // Reuse Particle type
 import { JUMP_DURATION_MS, JUMP_HEIGHT_PX } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
+import { sampleProjectileState } from '../utils/projectileSampling';
+import { getProjectileTrackingKey } from '../utils/renderers/projectileRenderingUtils';
 
 // --- Fire Arrow Particle Constants (more visible than before) ---
 const FIRE_ARROW_PARTICLE_LIFETIME_MIN = 80;  // Longer lifetime
@@ -24,9 +26,6 @@ const FIRE_ARROW_PARTICLES_PER_FRAME = 1.2; // More particles
 const PROJECTILE_FIRE_ARROW_PARTICLES_PER_FRAME = 2.0; // More particles for in-flight arrows
 const PROJECTILE_FIRE_ARROW_PARTICLE_LIFETIME_MIN = 120; // Longer trails
 const PROJECTILE_FIRE_ARROW_PARTICLE_LIFETIME_MAX = 250; // Longer trails
-
-// --- Physics Constants (matching server) ---
-const GRAVITY = 600.0; // Must match server GRAVITY constant
 
 // --- Smoke Particle Constants for Fire Arrow ---
 const FIRE_ARROW_SMOKE_PARTICLES_PER_FIRE_PARTICLE = 0.5; // More smoke
@@ -87,10 +86,10 @@ export function useFireArrowParticles({
         });
         
         // NEW: Add projectile fire arrows to the state key
-        projectiles.forEach((projectile, projectileId) => {
+        projectiles.forEach((projectile) => {
             const ammoDef = itemDefinitions.get(projectile.ammoDefId.toString());
             if (ammoDef && ammoDef.name === "Fire Arrow") {
-                key += `proj:${projectileId};`;
+                key += `proj:${getProjectileTrackingKey(projectile)};`;
             }
         });
         
@@ -101,7 +100,7 @@ export function useFireArrowParticles({
     useEffect(() => {
         // Cleanup stale projectile entries at start of each run (projectiles deleted since last run)
         const currentProjectileIds = new Set<string>();
-        projectiles.forEach((_, id) => currentProjectileIds.add(id));
+        projectiles.forEach((projectile) => currentProjectileIds.add(getProjectileTrackingKey(projectile)));
         for (const key of Array.from(projectileEmissionAccumulatorRef.current.keys())) {
             if (!currentProjectileIds.has(key)) {
                 projectileEmissionAccumulatorRef.current.delete(key);
@@ -258,16 +257,17 @@ export function useFireArrowParticles({
             });
 
             // NEW: Generate particles for in-flight fire arrow projectiles
-            projectiles.forEach((projectile, projectileId) => {
+            projectiles.forEach((projectile) => {
+                const projectileTrackingKey = getProjectileTrackingKey(projectile);
                 const ammoDef = itemDefinitions.get(projectile.ammoDefId.toString());
                 
                 if (!ammoDef || ammoDef.name !== "Fire Arrow") {
-                    projectileEmissionAccumulatorRef.current.set(projectileId, 0);
+                    projectileEmissionAccumulatorRef.current.set(projectileTrackingKey, 0);
                     return;
                 }
 
                 // FIXED: Use the same timing calculation as projectile rendering for synchronization
-                const projectileIdStr = projectile.id.toString();
+                const projectileIdStr = projectileTrackingKey;
                 const serverStartTimeMicros = Number(projectile.startTime.microsSinceUnixEpoch);
                 const serverStartTimeMs = serverStartTimeMicros / 1000;
                 
@@ -297,32 +297,21 @@ export function useFireArrowParticles({
                     elapsedTime = 0; // Force to 0 for immediate visibility
                 }
 
-                // Get weapon definition to determine gravity effect (matching server logic)
-                const weaponDef = itemDefinitions.get(projectile.itemDefId.toString());
-                let gravityMultiplier = 1.0; // Default for unsupported weapons
-                if (weaponDef && (weaponDef.name === "Crossbow" || weaponDef.name === "Hunting Bow")) {
-                    gravityMultiplier = 0.0; // Crossbow/Hunting Bow projectiles have NO gravity effect (straight line)
-                }
-
-                // Check if this is a thrown item (ammo_def_id == item_def_id) - no gravity for thrown items
-                const isThrownItem = projectile.ammoDefId === projectile.itemDefId;
-                const finalGravityMultiplier = isThrownItem ? 0.0 : gravityMultiplier;
-
-                // Calculate current position (matching server physics)
-                const currentX = projectile.startPosX + projectile.velocityX * elapsedTime;
-                const currentY = projectile.startPosY + projectile.velocityY * elapsedTime + 0.5 * GRAVITY * finalGravityMultiplier * Math.pow(elapsedTime, 2);
+                const sampledState = sampleProjectileState(projectile, elapsedTime, itemDefinitions);
+                const currentX = sampledState.x;
+                const currentY = sampledState.y;
 
                 // Use actual deltaTime for frame-rate independent movement
                 const deltaTimeFactor = deltaTime / 16.667; // Normalize to 60fps
                 
-                let projAcc = projectileEmissionAccumulatorRef.current.get(projectileId) || 0;
+                let projAcc = projectileEmissionAccumulatorRef.current.get(projectileTrackingKey) || 0;
                 projAcc += PROJECTILE_FIRE_ARROW_PARTICLES_PER_FRAME * deltaTimeFactor;
 
                 while (projAcc >= 1) {
                     projAcc -= 1;
                     const lifetime = PROJECTILE_FIRE_ARROW_PARTICLE_LIFETIME_MIN + Math.random() * (PROJECTILE_FIRE_ARROW_PARTICLE_LIFETIME_MAX - PROJECTILE_FIRE_ARROW_PARTICLE_LIFETIME_MIN);
                     newGeneratedParticlesThisFrame.push({
-                        id: `projectile_fire_arrow_${projectileId}_${now}_${Math.random()}`,
+                        id: `projectile_fire_arrow_${projectileTrackingKey}_${now}_${Math.random()}`,
                         type: 'fire',
                         x: currentX + (Math.random() - 0.5) * 3, // Small spread around projectile
                         y: currentY + (Math.random() - 0.5) * 3,
@@ -340,7 +329,7 @@ export function useFireArrowParticles({
                     if (Math.random() < FIRE_ARROW_SMOKE_PARTICLES_PER_FIRE_PARTICLE) {
                         const smokeLifetime = FIRE_ARROW_SMOKE_LIFETIME_MIN + Math.random() * (FIRE_ARROW_SMOKE_LIFETIME_MAX - FIRE_ARROW_SMOKE_LIFETIME_MIN);
                         newGeneratedParticlesThisFrame.push({
-                            id: `projectile_fire_arrow_smoke_${projectileId}_${now}_${Math.random()}`,
+                            id: `projectile_fire_arrow_smoke_${projectileTrackingKey}_${now}_${Math.random()}`,
                             type: 'smoke',
                             x: currentX + (Math.random() - 0.5) * 4, // Slightly wider spread for smoke trail
                             y: currentY - 2 + (Math.random() - 0.5) * 3, // Start smoke slightly behind projectile
@@ -355,7 +344,7 @@ export function useFireArrowParticles({
                         });
                     }
                 }
-                projectileEmissionAccumulatorRef.current.set(projectileId, projAcc);
+                projectileEmissionAccumulatorRef.current.set(projectileTrackingKey, projAcc);
             });
 
             // Update and filter all existing particles, then add newly generated ones

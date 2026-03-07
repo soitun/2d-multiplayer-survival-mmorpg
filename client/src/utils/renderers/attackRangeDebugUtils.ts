@@ -11,18 +11,14 @@
 
 import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal, Barrel, Grass, Campfire, SleepingBag, Stash, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated/types';
 import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation'; // Merged grass+grassState data
-import { PLAYER_RADIUS } from '../clientCollision';
-
-// ===== CONSTANTS =====
-// Server-side attack range constants (from server/src/active_equipment.rs)
-// Must match: PLAYER_RADIUS * 4.5 for default, PLAYER_RADIUS * 8.0 for spear, PLAYER_RADIUS * 7.0 for scythe
-export const DEFAULT_ATTACK_RANGE = PLAYER_RADIUS * 4.5; // ~144px
-export const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 8.0;   // ~256px - spear thrust range
-export const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - scythe sweep range
-
-// Attack arc angles (from server/src/active_equipment.rs)
-export const DEFAULT_ATTACK_ARC_DEGREES = 90; // Standard 90° arc
-export const SCYTHE_ATTACK_ARC_DEGREES = 150; // Scythe's massive 150° arc
+import {
+  DEFAULT_MELEE_ARC_DEGREES as DEFAULT_ATTACK_ARC_DEGREES,
+  DEFAULT_MELEE_ATTACK_RANGE as DEFAULT_ATTACK_RANGE,
+  SCYTHE_MELEE_ARC_DEGREES as SCYTHE_ATTACK_ARC_DEGREES,
+  SCYTHE_MELEE_ATTACK_RANGE as SCYTHE_ATTACK_RANGE,
+  SPEAR_MELEE_ARC_DEGREES as SPEAR_ATTACK_ARC_DEGREES,
+  SPEAR_MELEE_ATTACK_RANGE as SPEAR_ATTACK_RANGE,
+} from '../../config/combatConstants';
 
 // Server-side collision offsets (from server combat.rs, campfire.rs, sleeping_bag.rs)
 const SERVER_BOX_Y_OFFSET = 52; // BOX_COLLISION_Y_OFFSET
@@ -111,7 +107,7 @@ function getWeaponRangeAndArc(itemDef: SpacetimeDBItemDefinition | null | undefi
   
   // Spears - extended range, narrow thrust cone (60°)
   if (name === 'Wooden Spear' || name === 'Stone Spear' || name === 'Reed Harpoon') {
-    return { range: SPEAR_ATTACK_RANGE, arcDegrees: 60, color: 'rgba(255, 200, 0, 0.4)', label: 'Spear' };
+    return { range: SPEAR_ATTACK_RANGE, arcDegrees: SPEAR_ATTACK_ARC_DEGREES, color: 'rgba(255, 200, 0, 0.4)', label: 'Spear' };
   }
   
   // All other weapons/tools use default melee range

@@ -47,6 +47,7 @@ const lastKnownServerAnimalCorpseShakeTimes = new Map<string, number>();
 
 const SHAKE_DURATION_MS = 200;
 const SHAKE_INTENSITY_PX = 6;
+const CORPSE_SPAWN_FLASH_MS = 140;
 
 /** Trigger animal corpse shake immediately (optimistic feedback) when player initiates a hit. */
 export function triggerAnimalCorpseShakeOptimistic(corpseId: string): void {
@@ -201,6 +202,21 @@ export const renderAnimalCorpse = (
     sx, sy, frameWidth, frameHeight,  // Source rect from sprite sheet
     -renderSize.width / 2, -renderSize.height / 2, renderSize.width, renderSize.height  // Dest rect
   );
+
+  const corpseSpawnedAtMs = Number(corpse.spawnedAt.microsSinceUnixEpoch / 1000n);
+  const corpseFlashAgeMs = Math.max(0, currentTime - corpseSpawnedAtMs);
+  if (corpseFlashAgeMs < CORPSE_SPAWN_FLASH_MS) {
+    const flashAlpha = 1 - (corpseFlashAgeMs / CORPSE_SPAWN_FLASH_MS);
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.95, 0.55 + flashAlpha * 0.4)})`;
+    ctx.fillRect(
+      -renderSize.width / 2,
+      -renderSize.height / 2,
+      renderSize.width,
+      renderSize.height
+    );
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   ctx.restore();
 };

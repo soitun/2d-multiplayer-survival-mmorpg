@@ -168,7 +168,7 @@ import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUt
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { renderDronesDirectly, getInterpolatedDrones } from '../utils/renderers/droneRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
-import { renderProjectile, cleanupProjectileTrackingForDeleted, buildProjectileCollisionCircles } from '../utils/renderers/projectileRenderingUtils';
+import { renderProjectile, cleanupProjectileTrackingForDeleted, buildProjectileCollisionCircles, getProjectileTrackingKey } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
 import { setShelterClippingData, setGlobalShadowsEnabled } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
@@ -212,6 +212,7 @@ import {
 // V2 system removed due to performance issues
 import { BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { useInputHandler } from '../hooks/useInputHandler';
+import { useProjectilePresentationStore } from '../hooks/useProjectilePresentationStore';
 import { useGameReducerFeedbackHandlers } from '../hooks/useGameReducerFeedbackHandlers';
 import { useViewportSync } from '../hooks/useViewportSync';
 import { useRemotePlayerInterpolation } from '../hooks/useRemotePlayerInterpolation';
@@ -735,24 +736,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return players.get(localPlayerId);
   }, [players, localPlayerId]);
 
-  const authoritativeProjectilesForRendering = useMemo(() => {
-    if (!localPlayerId || projectiles.size === 0) return projectiles;
-    const filtered = new Map<string, SpacetimeDBProjectile>();
-    let removedAny = false;
-    projectiles.forEach((projectile, id) => {
-      const ownerId =
-        typeof (projectile as any).ownerId === 'string'
-          ? (projectile as any).ownerId
-          : projectile.ownerId?.toHexString?.();
-      const isLocalPlayerProjectile = projectile.sourceType === 0 && ownerId === localPlayerId;
-      if (isLocalPlayerProjectile) {
-        removedAny = true;
-        return;
-      }
-      filtered.set(id, projectile);
-    });
-    return removedAny ? filtered : projectiles;
-  }, [projectiles, localPlayerId]);
+  const authoritativeProjectilesForRendering = projectiles;
 
   // Initialize remote player interpolation
   const remotePlayerInterpolation = useRemotePlayerInterpolation();
@@ -1224,7 +1208,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Prevents unbounded Map growth during long combat sessions
   useEffect(() => {
     const ids = new Set<string>();
-    projectiles.forEach((_, id) => ids.add(id));
+    projectiles.forEach((projectile) => ids.add(getProjectileTrackingKey(projectile)));
     cleanupProjectileTrackingForDeleted(ids);
   }, [projectiles]);
 
@@ -1567,38 +1551,54 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     onProfilerRecordClick,
   });
 
-  const mergedProjectiles = useMemo(() => {
-    if (!optimisticProjectiles || optimisticProjectiles.size === 0) return authoritativeProjectilesForRendering;
-    const merged = new Map(authoritativeProjectilesForRendering);
-    optimisticProjectiles.forEach((projectile, id) => merged.set(id, projectile));
-    return merged;
-  }, [authoritativeProjectilesForRendering, optimisticProjectiles]);
+  const renderableProjectiles = useProjectilePresentationStore({
+    connection,
+    authoritativeProjectiles: authoritativeProjectilesForRendering,
+    optimisticProjectiles,
+    localPlayerId: localPlayer?.identity?.toHexString(),
+  });
 
-  const ySortedEntitiesWithOptimisticProjectiles = useMemo(() => {
-    if (!optimisticProjectiles || optimisticProjectiles.size === 0) return ySortedEntities;
-    const withOptimistic = [...ySortedEntities];
-    optimisticProjectiles.forEach((projectile) => {
-      withOptimistic.push({ type: 'projectile', entity: projectile } as any);
+  const corpseSourceAnimalIds = useMemo(() => {
+    const ids = new Set<string>();
+    visibleAnimalCorpsesMap.forEach((corpse) => {
+      ids.add(corpse.animalId.toString());
     });
-    return withOptimistic;
-  }, [ySortedEntities, optimisticProjectiles]);
+    return ids;
+  }, [visibleAnimalCorpsesMap]);
+
+  const ySortedEntitiesWithoutReplacedAnimals = useMemo(() => {
+    if (corpseSourceAnimalIds.size === 0) return ySortedEntities;
+    return ySortedEntities.filter((entity) => {
+      if (entity.type !== 'wild_animal') return true;
+      const animal = entity.entity as SpacetimeDBWildAnimal;
+      return !corpseSourceAnimalIds.has(animal.id.toString());
+    });
+  }, [corpseSourceAnimalIds, ySortedEntities]);
+
+  const ySortedEntitiesWithRenderableProjectiles = useMemo(() => {
+    const withProjectiles = ySortedEntitiesWithoutReplacedAnimals.filter(entity => entity.type !== 'projectile');
+    renderableProjectiles.forEach((projectile) => {
+      withProjectiles.push({ type: 'projectile', entity: projectile } as any);
+    });
+    return withProjectiles;
+  }, [ySortedEntitiesWithoutReplacedAnimals, renderableProjectiles]);
 
   // Keep both render lists synchronized in the same render pass to avoid one-frame
   // split-render mismatches (bottom half rendered while top half list is stale).
-  ySortedEntitiesRef.current = ySortedEntitiesWithOptimisticProjectiles;
+  ySortedEntitiesRef.current = ySortedEntitiesWithRenderableProjectiles;
   swimmingPlayersForBottomHalfRef.current = swimmingPlayersForBottomHalfFromHook;
 
-  // Override render list with optimistic projectiles included so shots appear instantly,
-  // even before the server projectile row is replicated.
+  // Override the render list so all projectile drawing flows through a single
+  // presentation layer, instead of mixing projectile entities from multiple sources.
   useEffect(() => {
-    ySortedEntitiesRef.current = ySortedEntitiesWithOptimisticProjectiles;
-  }, [ySortedEntitiesWithOptimisticProjectiles]);
+    ySortedEntitiesRef.current = ySortedEntitiesWithRenderableProjectiles;
+  }, [ySortedEntitiesWithRenderableProjectiles]);
 
   // Phase 4b: Sync frequently-changing values to ref (reduces renderGame dependency array churn)
   useEffect(() => {
     const d = renderGameDepsRef.current;
     d.messages = messages;
-    d.projectiles = mergedProjectiles;
+    d.projectiles = renderableProjectiles;
     d.holdInteractionProgress = holdInteractionProgress;
     d.isActivelyHolding = isActivelyHolding;
     d.closestInteractableHarvestableResourceId = closestInteractableHarvestableResourceId;
@@ -1619,7 +1619,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     d.closestInteractableMilkableAnimalId = closestInteractableMilkableAnimalId;
   }, [
     messages,
-    mergedProjectiles,
+    renderableProjectiles,
     holdInteractionProgress,
     isActivelyHolding,
     closestInteractableHarvestableResourceId,
@@ -1969,7 +1969,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     players,
     activeEquipments,
     itemDefinitions,
-    projectiles: mergedProjectiles,
+    projectiles: renderableProjectiles,
     deltaTime: 0 // Not used anymore, but kept for compatibility
   });
 
@@ -3194,6 +3194,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         shelters: shelters || EMPTY_MAP,
         players: players || EMPTY_MAP,
         wildAnimals: wildAnimals || EMPTY_MAP,
+        animalCorpses: visibleAnimalCorpsesMap || EMPTY_MAP,
         barrels: barrels || EMPTY_MAP,
         roadLampposts: roadLampposts || EMPTY_MAP,
         seaStacks: seaStacks || EMPTY_MAP,

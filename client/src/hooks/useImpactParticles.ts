@@ -328,6 +328,28 @@ export function useImpactParticles({
                 }
             });
 
+            // Lethal-hit confirmation: newly created corpse means a kill happened.
+            // Emit white flash + blood even if last_hit_time timing was missed.
+            if (!initializedCorpsesRef.current) {
+                seenCorpsesRef.current = new Set(animalCorpses.keys());
+                initializedCorpsesRef.current = true;
+            } else {
+                animalCorpses.forEach((corpse, id) => {
+                    if (seenCorpsesRef.current.has(id)) return;
+                    const sourceAnimalId = corpse.animalId?.toString?.() ?? '';
+                    const cachedAnimal = sourceAnimalId ? prevAnimalsRef.current.get(sourceAnimalId) : undefined;
+                    const flashX = cachedAnimal?.posX ?? corpse.posX;
+                    const flashY = cachedAnimal?.posY ?? corpse.posY;
+                    particlesRef.current.push(...generateWhiteFlashParticles(flashX, flashY, 18));
+                    particlesRef.current.push(...generateBloodParticles(flashX, flashY, 18));
+                    seenCorpsesRef.current.add(id);
+                });
+                const currentCorpseIds = new Set(animalCorpses.keys());
+                for (const id of Array.from(seenCorpsesRef.current)) {
+                    if (!currentCorpseIds.has(id)) seenCorpsesRef.current.delete(id);
+                }
+            }
+
             // Refresh previous animal snapshot for next frame
             const nextPrevAnimals = new Map<string, CachedAnimalState>();
             wildAnimals.forEach((animal, id) => {
@@ -347,24 +369,6 @@ export function useImpactParticles({
                     if (!currentIds.has(id)) {
                         animalHitRecordsRef.current.delete(id);
                     }
-                }
-            }
-            
-            // Lethal-hit confirmation: newly created corpse means a kill happened.
-            // Emit white flash + blood even if last_hit_time timing was missed.
-            if (!initializedCorpsesRef.current) {
-                seenCorpsesRef.current = new Set(animalCorpses.keys());
-                initializedCorpsesRef.current = true;
-            } else {
-                animalCorpses.forEach((corpse, id) => {
-                    if (seenCorpsesRef.current.has(id)) return;
-                    particlesRef.current.push(...generateWhiteFlashParticles(corpse.posX, corpse.posY, 12));
-                    particlesRef.current.push(...generateBloodParticles(corpse.posX, corpse.posY, 14));
-                    seenCorpsesRef.current.add(id);
-                });
-                const currentCorpseIds = new Set(animalCorpses.keys());
-                for (const id of Array.from(seenCorpsesRef.current)) {
-                    if (!currentCorpseIds.has(id)) seenCorpsesRef.current.delete(id);
                 }
             }
 

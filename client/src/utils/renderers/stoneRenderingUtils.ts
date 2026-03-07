@@ -49,7 +49,6 @@ export function triggerStoneShakeOptimistic(stoneId: string, posX: number, posY:
   const now = Date.now();
   clientStoneShakeStartTimes.set(stoneId, now);
   lastKnownServerStoneShakeTimes.set(stoneId, now);
-  triggerStoneHitEffect(stoneId, posX, posY, normalizeOreType(oreType));
 }
 
 // ============================================================================

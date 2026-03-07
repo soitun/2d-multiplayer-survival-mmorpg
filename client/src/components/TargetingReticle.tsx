@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Player, ItemDefinition, RangedWeaponStats, ActiveEquipment } from '../generated/types';
 import { Identity } from 'spacetimedb';
+import { isRangedWeaponEffectivelyReady } from '../utils/rangedWeaponReadiness';
 
 interface TargetingReticleProps {
   localPlayer: Player | null;
@@ -44,17 +45,15 @@ const TargetingReticle: React.FC<TargetingReticleProps> = ({
     )
   );
   
-  // Check if weapon is ready to fire (loaded with ammo)
-  const isReadyToFire = activeEquipment?.isReadyToFire ?? false;
-  
-  // Reticle color: red when not loaded, white when ready to fire
-  const reticleColor = isReadyToFire ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 80, 80, 0.9)';
-  const reticleCenterColor = isReadyToFire ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 50, 50, 0.8)';
-  const reticleSecondaryColor = isReadyToFire ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 100, 100, 0.7)';
-  
   // Get weapon stats - use actual weapon range from stats
   const weaponStats = activeItemDef ? rangedWeaponStats.get(activeItemDef.name || '') : null;
   const weaponRange = weaponStats?.weaponRange ?? 0;
+  const isReadyToFire = isRangedWeaponEffectivelyReady(activeEquipment, weaponStats);
+
+  // Reticle color: red while empty/reloading/on cooldown, white when the shot can actually be fired
+  const reticleColor = isReadyToFire ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 80, 80, 0.9)';
+  const reticleCenterColor = isReadyToFire ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 50, 50, 0.8)';
+  const reticleSecondaryColor = isReadyToFire ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 100, 100, 0.7)';
 
   // Update rotation continuously for animation
   useEffect(() => {

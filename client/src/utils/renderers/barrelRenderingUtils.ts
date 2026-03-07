@@ -134,7 +134,7 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                 SHAKE_DURATION_MS,
                 SHAKE_INTENSITY_PX,
                 undefined,
-                { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
+                { suppressRestartIfRecentClientShake: true }
             );
 
             const variantIndex = Number(entity.variant ?? 0);
@@ -180,7 +180,7 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                 SHAKE_DURATION_MS,
                 SHAKE_INTENSITY_PX,
                 undefined,
-                { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
+                { suppressRestartIfRecentClientShake: true }
             );
             return { offsetX: shakeOffsetX, offsetY: shakeOffsetY };
         }
@@ -537,7 +537,7 @@ export function renderSeaBarrelWaterShadowOnly(
         barrel, barrel.id.toString(),
         { clientStartTimes: clientBarrelShakeStartTimes, lastKnownServerTimes: lastKnownServerBarrelShakeTimes },
         SHAKE_DURATION_MS, SHAKE_INTENSITY_PX, undefined,
-        { suppressRestartIfRecentClientShake: false }
+        { suppressRestartIfRecentClientShake: true }
     );
 
     ctx.save();
@@ -616,7 +616,7 @@ function renderSeaBarrelWithWaterEffects(
             SHAKE_DURATION_MS,
             SHAKE_INTENSITY_PX,
             undefined,
-            { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
+            { suppressRestartIfRecentClientShake: true }
         );
         const centerY = barrel.posY - drawHeight / 2 - yOffset;
         const shadowOffsetX = drawWidth * 0.28;

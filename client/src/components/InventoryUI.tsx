@@ -66,8 +66,8 @@ import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabili
 import { formatGrenadeCountdown } from '../utils/grenadeMetadataHelpers';
 import { isCombatLadleHot } from '../utils/itemIconUtils';
 import DurabilityBar from './DurabilityBar';
-// Import arrow damage calculation helpers
-import { getArrowDamageTooltip } from '../utils/arrowDamageCalculations';
+// Import ammo damage calculation helpers
+import { getAmmoDamageTooltip } from '../utils/arrowDamageCalculations';
 // Import InventorySearchBar component
 import InventorySearchBar from './InventorySearchBar';
 // Import ArmorStatsPanel component
@@ -389,9 +389,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             // Weapon Stats (PvP) - handle ammunition differently
             if (def.category.tag === 'Ammunition') {
                 // For ammunition, show effective damage with common weapons
-                const arrowDamageTooltip = getArrowDamageTooltip(def);
-                if (arrowDamageTooltip) {
-                    stats.push({ label: 'Effective Damage', value: arrowDamageTooltip });
+                const ammoDamageTooltip = getAmmoDamageTooltip(def, itemDefinitions);
+                if (ammoDamageTooltip) {
+                    stats.push({ label: 'Effective Damage', value: ammoDamageTooltip });
                 }
             } else if (def.pvpDamageMin !== undefined || def.pvpDamageMax !== undefined) {
                 // For non-ammunition items, show raw damage values
@@ -880,9 +880,9 @@ connection.reducers.quickMoveToBrothPot({
             // Weapon Stats (PvP Damage) - handle ammunition differently
             if (def.category.tag === 'Ammunition') {
                 // For ammunition, show effective damage with common weapons
-                const arrowDamageTooltip = getArrowDamageTooltip(def);
-                if (arrowDamageTooltip) {
-                    stats.push({ label: 'Effective Damage', value: arrowDamageTooltip });
+                const ammoDamageTooltip = getAmmoDamageTooltip(def, itemDefinitions);
+                if (ammoDamageTooltip) {
+                    stats.push({ label: 'Effective Damage', value: ammoDamageTooltip });
                 }
             } else if (def.pvpDamageMin !== undefined || def.pvpDamageMax !== undefined) {
                 // For non-ammunition items, show raw damage values

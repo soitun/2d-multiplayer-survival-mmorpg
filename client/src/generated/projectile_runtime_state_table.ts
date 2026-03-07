@@ -10,10 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
-  targetWorldX: __t.f32(),
-  targetWorldY: __t.f32(),
-  clientPlayerX: __t.f32(),
-  clientPlayerY: __t.f32(),
-  clientShotId: __t.string(),
-};
+export default __t.row({
+  projectileId: __t.u64().primaryKey().name("projectile_id"),
+  lastSampleElapsedSecs: __t.f32().name("last_sample_elapsed_secs"),
+});

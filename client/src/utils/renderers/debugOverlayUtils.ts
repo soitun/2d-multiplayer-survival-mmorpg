@@ -10,24 +10,19 @@
 import { CollisionShape, COLLISION_OFFSETS, PLAYER_RADIUS } from '../clientCollision';
 import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole, LivingCoral, Projectile } from '../../generated/types';
 import { YSortedEntityType, CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
-
-// Projectile constants for debug rendering (must match server values)
-const PROJECTILE_SOURCE_PLAYER = 0;
-const PROJECTILE_SOURCE_TURRET = 1;
-const PROJECTILE_SOURCE_NPC = 2;
-const PROJECTILE_SOURCE_MONUMENT_TURRET = 3;
-
-// NPC projectile types for rendering
-const NPC_PROJECTILE_SPECTRAL_SHARD = 1;  // Shardkin
-const NPC_PROJECTILE_SPECTRAL_BOLT = 2;   // Shorebound
-const NPC_PROJECTILE_VENOM_SPITTLE = 3;   // Viper
-
-// Collision radius constants (must match server)
-const NPC_PROJECTILE_PLAYER_HIT_RADIUS = 96.0;  // Large radius for NPC projectiles hitting players
-const PLAYER_PROJECTILE_HIT_RADIUS = 32.0;       // Standard player radius for player projectiles
-
-// Gravity constant for position calculation
-const PROJECTILE_GRAVITY = 600.0;
+import {
+  NPC_PROJECTILE_SPECTRAL_BOLT,
+  NPC_PROJECTILE_SPECTRAL_SHARD,
+  NPC_PROJECTILE_VENOM_SPITTLE,
+  PROJECTILE_GRAVITY,
+  PROJECTILE_NPC_PLAYER_HIT_RADIUS,
+  PROJECTILE_PLAYER_HIT_RADIUS,
+  PROJECTILE_SOURCE_MONUMENT_TURRET,
+  PROJECTILE_SOURCE_NPC,
+  PROJECTILE_SOURCE_PLAYER,
+  PROJECTILE_SOURCE_TURRET,
+} from '../../config/projectileConstants';
+import { sampleProjectileState } from '../projectileSampling';
 
 // ===== TYPES =====
 
@@ -246,6 +241,9 @@ function getShapeColors(shapeType: string): { fillColor: string; strokeColor: st
   } else if (shapeType.startsWith('animal-')) {
     fillColor = `rgba(255, 165, 0, ${fillAlpha})`; // Orange for animals
     strokeColor = `rgba(255, 165, 0, ${strokeAlpha})`;
+  } else if (shapeType.startsWith('animal_corpse-')) {
+    fillColor = `rgba(255, 99, 71, ${fillAlpha})`; // Tomato for animal corpses
+    strokeColor = `rgba(255, 99, 71, ${strokeAlpha})`;
   } else if (shapeType.startsWith('wall-') || shapeType.startsWith('door-')) {
     fillColor = `rgba(139, 69, 19, ${fillAlpha})`; // Saddle brown for walls/doors
     strokeColor = `rgba(139, 69, 19, ${strokeAlpha})`;
@@ -281,6 +279,7 @@ function getOffsetInfo(type: string): string {
   if (typeUpper === 'BARBECUE') return `off:(0,0)`;
   if (typeUpper === 'SHELTER') return `off:(${COLLISION_OFFSETS.SHELTER.x},${COLLISION_OFFSETS.SHELTER.y})`;
   if (typeUpper === 'ANIMAL') return `off:(${COLLISION_OFFSETS.WILD_ANIMAL.x},${COLLISION_OFFSETS.WILD_ANIMAL.y})`;
+  if (typeUpper === 'ANIMAL_CORPSE') return `off:(0,0)`;
   if (typeUpper === 'BARREL') return `off:(dynamic sea-aware)`;
   if (typeUpper === 'ALK_STATION') return `off:(${COLLISION_OFFSETS.ALK_STATION.x},${COLLISION_OFFSETS.ALK_STATION.y})`;
   if (typeUpper === 'SEA_STACK') return `off:(${COLLISION_OFFSETS.SEA_STACK.x},${COLLISION_OFFSETS.SEA_STACK.y})`;
@@ -721,23 +720,9 @@ export function renderProjectileCollisionDebug(
     // Skip projectiles that are too old (probably stale data)
     if (elapsedTimeSeconds > 15) continue;
 
-    // Determine gravity multiplier based on projectile type
-    // NPC and turret projectiles have no gravity (fly straight)
-    // Turret tallow actually has gravity in the server
-    let gravityMultiplier = 0.0;
-    if (projectile.sourceType === PROJECTILE_SOURCE_TURRET) {
-      gravityMultiplier = 1.0; // Turret tallow has full gravity
-    } else if (projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET) {
-      gravityMultiplier = 0.0; // Monument turret projectiles fly straight
-    } else if (projectile.sourceType === PROJECTILE_SOURCE_PLAYER) {
-      // Player projectiles: bows have gravity, crossbows/guns have less
-      gravityMultiplier = 1.0; // Default to full gravity for simplicity in debug
-    }
-
-    // Calculate current position
-    const currentX = projectile.startPosX + projectile.velocityX * elapsedTimeSeconds;
-    const currentY = projectile.startPosY + projectile.velocityY * elapsedTimeSeconds + 
-                     0.5 * PROJECTILE_GRAVITY * gravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
+    const sampledState = sampleProjectileState(projectile, elapsedTimeSeconds);
+    const currentX = sampledState.x;
+    const currentY = sampledState.y;
 
     // Calculate distance from player for filtering (only show nearby projectiles)
     const distFromPlayer = Math.sqrt((currentX - playerX) ** 2 + (currentY - playerY) ** 2);
@@ -748,8 +733,8 @@ export function renderProjectileCollisionDebug(
     
     // Determine hit radius based on projectile source type
     const hitRadius = projectile.sourceType === PROJECTILE_SOURCE_NPC 
-      ? NPC_PROJECTILE_PLAYER_HIT_RADIUS 
-      : PLAYER_PROJECTILE_HIT_RADIUS;
+      ? PROJECTILE_NPC_PLAYER_HIT_RADIUS
+      : PROJECTILE_PLAYER_HIT_RADIUS;
 
     // Draw the hit radius circle (larger, faint circle showing collision area)
     ctx.fillStyle = colors.hitRadiusColor;

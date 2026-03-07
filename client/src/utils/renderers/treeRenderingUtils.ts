@@ -66,7 +66,6 @@ export function triggerTreeShakeOptimistic(treeId: string, posX: number, posY: n
   clientTreeShakeStartTimes.set(treeId, now);
   // Don't set lastKnownServerTimes here - let server update sync it. Prevents double shake
   // when server confirms (alreadyShaking blocks onNewShake, but we avoid timestamp confusion).
-  triggerTreeHitEffect(treeId, posX, posY);
 }
 
 /**

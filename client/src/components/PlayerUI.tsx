@@ -22,6 +22,7 @@ import BoneCarvingPanel from './BoneCarvingPanel';
 import RadioPanel from './RadioPanel';
 // Hot loot hook
 import { useHotLoot } from '../hooks/useHotLoot';
+import { REMOTE_HEALING_RANGE_PX } from '../config/combatConstants';
 // --- END NEW IMPORTS ---
 
 // Import status icons for mobile UI
@@ -276,7 +277,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             const dx = healer.positionX - target.positionX;
                             const dy = healer.positionY - target.positionY;
                             const distance = Math.sqrt(dx * dx + dy * dy);
-                            const HEALING_RANGE = 4.0 * 32.0; // Must match server's range (4 tiles)
+                            const HEALING_RANGE = REMOTE_HEALING_RANGE_PX;
                             
                             if (distance <= HEALING_RANGE) {
                                 foundMatch = true;
@@ -368,7 +369,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     const dx = healer.positionX - target.positionX;
                     const dy = healer.positionY - target.positionY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    const HEALING_RANGE = 4.0 * 32.0; // Must match server's range (4 tiles)
+                    const HEALING_RANGE = REMOTE_HEALING_RANGE_PX;
                     
                     // Only show ghost bar if players are in range
                     if (distance <= HEALING_RANGE) {
@@ -790,7 +791,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                         const dx = healer.positionX - target.positionX;
                         const dy = healer.positionY - target.positionY;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        const HEALING_RANGE = 4.0 * 32.0; // Must match server's range
+                        const HEALING_RANGE = REMOTE_HEALING_RANGE_PX;
                         
                         if (distance <= HEALING_RANGE) {
                             effectApplies = true;
@@ -1361,7 +1362,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     const dx = healer.positionX - target.positionX;
                     const dy = healer.positionY - target.positionY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    const HEALING_RANGE = 4.0 * 32.0; // Must match server's range
+                    const HEALING_RANGE = REMOTE_HEALING_RANGE_PX;
                     
                     if (distance <= HEALING_RANGE) {
                         effectApplies = true;

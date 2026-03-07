@@ -53,6 +53,7 @@ import { getItemIcon } from '../utils/itemIconUtils';
 import { formatDuration as formatDurationSeconds } from '../utils/formatDuration';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 import { isCompoundMonument } from '../config/compoundBuildings';
+import { brothConfig } from '../config/sharedGameConfig';
 
 /**
  * Convert item display name to icon asset name
@@ -78,6 +79,9 @@ import { calculateChunkIndex } from '../utils/chunkUtils';
 
 // Import brew effect registration for particle coloring
 import { registerBrewEffect, clearBrewEffect } from '../utils/renderers/brothPotRenderingUtils';
+
+const BREWING_WATER_REQUIREMENT_ML = brothConfig.brewingWaterRequirementMl;
+const BROTH_POT_MAX_WATER_CAPACITY_ML = brothConfig.maxWaterCapacityMl;
 
 /**
  * Helper to extract ingredient names from a broth pot
@@ -938,7 +942,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
         // Check brewing conditions:
         // - Has 3 ingredients (all slots filled)
-        // - Has sufficient water (>=250ml for brewing)
+        // - Has sufficient water for brewing
         // - Not seawater
         // - Not already cooking
         // - No output item (brewing not complete)
@@ -950,7 +954,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
         const canBrew = 
             hasThreeIngredients &&
-            pot.waterLevelMl >= 250 &&
+            pot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML &&
             !pot.isSeawater &&
             !pot.isCooking &&
             (pot.outputItemInstanceId === null || pot.outputItemInstanceId === undefined);
@@ -1587,7 +1591,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             {/* Arrow indicator between ingredients and output - changes color based on readiness */}
                             {(() => {
                                 const filledIngredientCount = brothPotItems.filter(item => item !== null).length;
-                                const hasEnoughWater = attachedBrothPot.waterLevelMl >= 250;
+                                const hasEnoughWater = attachedBrothPot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML;
                                 const isReady = filledIngredientCount >= 3 && hasEnoughWater && !attachedBrothPot.isSeawater;
                                 
                                 return (
@@ -1693,7 +1697,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         {/* Visual Readiness Indicator - shows ingredient and water status - SUBDUED */}
                         {(() => {
                             const filledIngredientCount = brothPotItems.filter(item => item !== null).length;
-                            const hasEnoughWater = attachedBrothPot.waterLevelMl >= 250;
+                            const hasEnoughWater = attachedBrothPot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML;
                             const isReady = filledIngredientCount >= 3 && hasEnoughWater && !attachedBrothPot.isSeawater;
                             
                             return (
@@ -1725,7 +1729,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     {/* Water indicator */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                                         <span style={{ fontSize: '9px' }}>{attachedBrothPot.isSeawater ? '🌊' : '💧'}</span>
-                                        <span>{hasEnoughWater ? '✓' : `${Math.round(attachedBrothPot.waterLevelMl)}/250ml`}</span>
+                                        <span>{hasEnoughWater ? '✓' : `${Math.round(attachedBrothPot.waterLevelMl)}/${BREWING_WATER_REQUIREMENT_ML}ml`}</span>
                                     </div>
                                 </div>
                             );
@@ -1741,7 +1745,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 fontWeight: 'bold',
                                 textShadow: '0 0 4px rgba(135, 206, 250, 0.6)',
                             }}>
-                                {attachedBrothPot.isSeawater ? '🌊' : '💧'} Water: {attachedBrothPot.waterLevelMl}ml / 5000ml
+                                {attachedBrothPot.isSeawater ? '🌊' : '💧'} Water: {attachedBrothPot.waterLevelMl}ml / {BROTH_POT_MAX_WATER_CAPACITY_ML}ml
                             </div>
                             
                                 {/* Visual water level bar - LARGER and more prominent */}
@@ -1757,29 +1761,29 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     position: 'relative',
                                     boxShadow: '0 0 8px rgba(0, 150, 255, 0.3), inset 0 0 4px rgba(0, 150, 255, 0.2)',
                                 }}>
-                                    {/* Minimum water threshold line at 250ml (first tick) - BRIGHT RED/GOLD - MORE PROMINENT */}
+                                    {/* Minimum water threshold line for brewing - BRIGHT RED/GOLD - MORE PROMINENT */}
                                     <div style={{
                                         position: 'absolute',
-                                        left: `${(250 / 5000) * 100}%`,
+                                        left: `${(BREWING_WATER_REQUIREMENT_ML / BROTH_POT_MAX_WATER_CAPACITY_ML) * 100}%`,
                                         top: '-3px',
                                         bottom: '-3px',
                                         width: '4px', // Increased from 3px to 4px
-                                        backgroundColor: attachedBrothPot.waterLevelMl >= 250 
+                                        backgroundColor: attachedBrothPot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML
                                             ? 'rgba(0, 255, 136, 1)' // Green when threshold met - fully opaque
                                             : 'rgba(255, 100, 50, 1)', // Red when threshold not met - fully opaque
                                         borderRadius: '2px',
                                         zIndex: 10,
                                         pointerEvents: 'none',
-                                        boxShadow: attachedBrothPot.waterLevelMl >= 250
+                                        boxShadow: attachedBrothPot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML
                                             ? '0 0 8px rgba(0, 255, 136, 1)' // Green glow when met - brighter
                                             : '0 0 8px rgba(255, 100, 50, 1)', // Red glow when not met - brighter
-                                        animation: attachedBrothPot.waterLevelMl < 250 
+                                        animation: attachedBrothPot.waterLevelMl < BREWING_WATER_REQUIREMENT_ML
                                             ? 'thresholdPulse 1.5s ease-in-out infinite' 
                                             : 'none',
                                     }} />
                                     {/* Water fill - MORE PROMINENT */}
                                     <div style={{
-                                        width: `${(attachedBrothPot.waterLevelMl / 5000) * 100}%`,
+                                        width: `${(attachedBrothPot.waterLevelMl / BROTH_POT_MAX_WATER_CAPACITY_ML) * 100}%`,
                                         height: '100%',
                                         background: attachedBrothPot.waterLevelMl > 0 
                                             ? (attachedBrothPot.isSeawater 
@@ -1794,10 +1798,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                 : '0 0 10px rgba(0, 150, 255, 0.8), inset 0 0 4px rgba(0, 150, 255, 0.4)') // Blue glow for fresh water - brighter
                                             : 'none',
                                     }} />
-                                    {/* Yellow tick marks every 250ml (20 ticks for 5000ml) - ADJUSTED FOR LARGER BAR */}
-                                    {Array.from({ length: 19 }, (_, i) => {
-                                        const tickPosition = ((i + 1) * 250 / 5000) * 100; // Position as percentage
-                                        const isMajorTick = (i + 1) % 4 === 0; // Every 1000ml (4 x 250ml)
+                                    {/* Yellow tick marks at brewing-sized increments - ADJUSTED FOR LARGER BAR */}
+                                    {Array.from({ length: (BROTH_POT_MAX_WATER_CAPACITY_ML / BREWING_WATER_REQUIREMENT_ML) - 1 }, (_, i) => {
+                                        const tickPosition = ((i + 1) * BREWING_WATER_REQUIREMENT_ML / BROTH_POT_MAX_WATER_CAPACITY_ML) * 100;
+                                        const isMajorTick = (i + 1) % 4 === 0;
                                         const isFirstTick = i === 0; // First tick is the minimum threshold
                                         return (
                                             <div
@@ -1812,7 +1816,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                         ? 'rgba(255, 200, 0, 1)' // Bright gold for first tick (minimum threshold)
                                                         : isMajorTick 
                                                             ? 'rgba(255, 215, 0, 0.9)' // Bright gold for major ticks (1000ml)
-                                                            : 'rgba(255, 215, 0, 0.5)', // Dimmer gold for minor ticks (250ml)
+                                                            : 'rgba(255, 215, 0, 0.5)', // Dimmer gold for minor ticks
                                                     pointerEvents: 'none',
                                                     zIndex: isFirstTick ? 5 : 1, // First tick above water fill
                                                 }}
@@ -1830,7 +1834,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 attachedBrothPot.ingredientDefId0 != null &&
                                 attachedBrothPot.ingredientDefId1 != null &&
                                 attachedBrothPot.ingredientDefId2 != null;
-                            const hasEnoughWater = attachedBrothPot.waterLevelMl >= 250;
+                            const hasEnoughWater = attachedBrothPot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML;
                             const notSeawater = !attachedBrothPot.isSeawater;
                             const notCooking = !attachedBrothPot.isCooking;
                             const noOutput = attachedBrothPot.outputItemInstanceId == null;
@@ -1908,7 +1912,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         {/* No Heat Source Warning - shown when ready to brew but fire not lit */}
                         {!attachedBrothPot.isCooking && 
                          !attachedBrothPot.isSeawater &&
-                         attachedBrothPot.waterLevelMl >= 250 &&
+                         attachedBrothPot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML &&
                          attachedBrothPot.outputItemInstanceId == null &&
                          !hasHeatSource &&
                          attachedBrothPot.ingredientDefId0 != null &&
@@ -2039,7 +2043,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         {/* Seawater Warning - shown when pot has seawater and ingredients */}
                         {!attachedBrothPot.isCooking && 
                          attachedBrothPot.isSeawater && 
-                         attachedBrothPot.waterLevelMl >= 250 &&
+                         attachedBrothPot.waterLevelMl >= BREWING_WATER_REQUIREMENT_ML &&
                          (brothPotItems.some(item => item !== null)) && (
                             <div style={{
                                 marginTop: '8px',
@@ -2108,7 +2112,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 console.error("Error transferring water from container to pot:", e);
                             }
                         }}
-                        disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= 5000}
+                        disabled={!waterContainerItem || attachedBrothPot.waterLevelMl >= BROTH_POT_MAX_WATER_CAPACITY_ML}
                         className={styles.interactionButton}
                         style={{ 
                             width: '100%', 

@@ -22,6 +22,7 @@ import { DbConnection } from '../../generated';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
 import { PlayerDodgeRollState } from '../../generated/types';
 import { isWaterTileTag } from '../tileTypeGuards';
+import { DODGE_ROLL_DURATION_MS } from '../../config/combatConstants';
 
 // =============================================================================
 // TERRAIN CONFIGURATION
@@ -240,7 +241,7 @@ export function updatePlayerFootprints(
       const clientReceptionTime = (dodgeRollState as any).clientReceptionTimeMs || nowMs;
       const elapsed = nowMs - clientReceptionTime;
 
-      if (elapsed < 500) { // 500ms dodge roll duration (SYNCED WITH SERVER)
+      if (elapsed < DODGE_ROLL_DURATION_MS) {
         // Player is dodging - skip creating footprints
         state.lastPosition = { x: player.positionX, y: player.positionY };
         return;

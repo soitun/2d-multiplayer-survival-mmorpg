@@ -1862,6 +1862,7 @@ export function useEntityFiltering(
     lastEntityCounts: {} as Record<string, number>,
     lastDroppedItemsSignature: '' as string,
     lastHarvestableResourcesSignature: '' as string,
+    lastProjectileSignature: '' as string,
     lastFoundationMapSize: 0, // Track foundation map size separately
     lastWallMapSize: 0, // Track wall map size separately
     isDirty: true
@@ -1895,6 +1896,10 @@ export function useEntityFiltering(
       .join('|');
     const harvestableResourcesSignature = visibleHarvestableResources
       .map(resource => `${resource.id.toString()}:${resource.respawnAt?.microsSinceUnixEpoch?.toString?.() ?? '0'}`)
+      .sort()
+      .join('|');
+    const projectileSignature = visibleProjectiles
+      .map(projectile => projectile.clientShotId?.trim?.() || projectile.id.toString())
       .sort()
       .join('|');
 
@@ -2036,6 +2041,7 @@ export function useEntityFiltering(
     const localPlayerTileChanged = localPlayerTileKey !== ySortedCache.lastLocalPlayerTileKey;
     const droppedItemsChanged = droppedItemsSignature !== ySortedCache.lastDroppedItemsSignature;
     const harvestableResourcesChanged = harvestableResourcesSignature !== ySortedCache.lastHarvestableResourcesSignature;
+    const projectilesChanged = projectileSignature !== ySortedCache.lastProjectileSignature;
     
     // Check if we need to resort
     // PERFORMANCE: Resort every 8 frames (~7.5/sec) - balances smoothness vs cost. Increase to 4 for more responsive.
@@ -2044,6 +2050,7 @@ export function useEntityFiltering(
                        hasEntityCountChanged(currentEntityCounts) ||
                        droppedItemsChanged || // Keep dropped-item create/delete/replacement visually immediate
                        harvestableResourcesChanged || // Keep harvestable hide/show immediate on harvest/respawn
+                       projectilesChanged || // Projectiles are short-lived; stale cached arrows are visually worse than a cheap rebuild
                        foundationsJustLoaded || // Force resort when foundations first load
                        wallsJustLoaded || // Force resort when walls first load
                        wallCountIncreased || // CRITICAL: Force resort when new wall is placed
@@ -3038,6 +3045,7 @@ export function useEntityFiltering(
     ySortedCache.lastEntityCounts = currentEntityCounts;
     ySortedCache.lastDroppedItemsSignature = droppedItemsSignature;
     ySortedCache.lastHarvestableResourcesSignature = harvestableResourcesSignature;
+    ySortedCache.lastProjectileSignature = projectileSignature;
     ySortedCache.lastFoundationMapSize = foundationCells?.size || 0;
     ySortedCache.lastWallMapSize = wallCells?.size || 0;
     ySortedCache.isDirty = false;

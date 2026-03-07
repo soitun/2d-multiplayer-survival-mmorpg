@@ -574,6 +574,8 @@ import PrivateMessageRow from "./private_message_table";
 import ProcessEffectsScheduleRow from "./process_effects_schedule_table";
 import ProgressNotificationRow from "./progress_notification_table";
 import ProjectileRow from "./projectile_table";
+import ProjectileResolvedEventRow from "./projectile_resolved_event_table";
+import ProjectileRuntimeStateRow from "./projectile_runtime_state_table";
 import ProjectileUpdateScheduleRow from "./projectile_update_schedule_table";
 import QuestCompletionNotificationRow from "./quest_completion_notification_table";
 import QuestProgressNotificationRow from "./quest_progress_notification_table";
@@ -2288,6 +2290,28 @@ const tablesSchema = __schema({
       { name: 'projectile_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ProjectileRow),
+  projectile_resolved_event: __table({
+    name: 'projectile_resolved_event',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'projectile_resolved_event_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ProjectileResolvedEventRow),
+  projectile_runtime_state: __table({
+    name: 'projectile_runtime_state',
+    indexes: [
+      { name: 'projectile_id', algorithm: 'btree', columns: [
+        'projectileId',
+      ] },
+    ],
+    constraints: [
+      { name: 'projectile_runtime_state_projectile_id_key', constraint: 'unique', columns: ['projectileId'] },
+    ],
+  }, ProjectileRuntimeStateRow),
   projectile_update_schedule: __table({
     name: 'projectile_update_schedule',
     indexes: [

@@ -1,9 +1,10 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence, RoadLamppost, MonumentPart } from '../generated/types';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, AnimalCorpse, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence, RoadLamppost, MonumentPart } from '../generated/types';
 import { getVillageCampfireCollisionShapes, getMonumentScarecrowCollisionShapes } from './monumentCollision';
 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, isCompoundMonument } from '../config/compoundBuildings';
+import { ANIMAL_CORPSE_COLLISION_RADIUS } from './renderers/animalCorpseRenderingUtils';
 
 // Add at top after imports:
 // Spatial filtering constants
@@ -1301,6 +1302,7 @@ export interface GameEntities {
   shelters: Map<string, Shelter>;
   players: Map<string, Player>;
   wildAnimals: Map<string, WildAnimal>; // Add wild animals
+  animalCorpses?: Map<string, AnimalCorpse>; // Debug-only corpse collision overlays
   barrels: Map<string, Barrel>; // Add barrels
   seaStacks: Map<string, any>; // Sea stacks from SpacetimeDB
   wallCells: Map<string, WallCell>; // Add wall cells for collision
@@ -2021,5 +2023,24 @@ export function getCollisionShapesForDebug(
   localPlayerId: string,
   isOnSeaTile?: (worldX: number, worldY: number) => boolean
 ): CollisionShape[] {
-  return getCollisionCandidates(entities, playerX, playerY, localPlayerId, isOnSeaTile);
+  const debugShapes = getCollisionCandidates(entities, playerX, playerY, localPlayerId, isOnSeaTile);
+  const nearbyAnimalCorpses = filterEntitiesByDistance(
+    entities.animalCorpses ?? new Map<string, AnimalCorpse>(),
+    playerX,
+    playerY,
+    COLLISION_PERF.ANIMAL_CULL_DISTANCE_SQ,
+    COLLISION_PERF.MAX_ANIMALS_TO_CHECK
+  );
+
+  for (const corpse of nearbyAnimalCorpses) {
+    debugShapes.push({
+      id: corpse.id.toString(),
+      type: `animal_corpse-${corpse.id.toString()}`,
+      x: corpse.posX,
+      y: corpse.posY,
+      radius: ANIMAL_CORPSE_COLLISION_RADIUS,
+    });
+  }
+
+  return debugShapes;
 } 

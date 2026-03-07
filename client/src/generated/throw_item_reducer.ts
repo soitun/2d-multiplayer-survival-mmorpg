@@ -13,4 +13,7 @@ import {
 export default {
   targetWorldX: __t.f32(),
   targetWorldY: __t.f32(),
+  clientPlayerX: __t.f32(),
+  clientPlayerY: __t.f32(),
+  clientShotId: __t.string(),
 };

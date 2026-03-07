@@ -7,6 +7,7 @@ import { isWaterContainer, hasWaterContent, getWaterLevelPercentage, isSaltWater
 import { isPlantableSeed } from '../utils/plantsUtils';
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, getDurability, getMaxDurability, MAX_DURABILITY, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining } from '../utils/durabilityHelpers';
 import { isCombatLadleHot } from '../utils/itemIconUtils';
+import { getRangedWeaponCooldownDurationMs, getRangedWeaponReloadDurationMs } from '../utils/rangedWeaponReadiness';
 import DurabilityBar from './DurabilityBar';
 
 // Import Custom Components
@@ -312,7 +313,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     if (itemDef.category.tag === 'RangedWeapon' && rangedWeaponStats) {
       const weaponStats = rangedWeaponStats.get(itemDef.name);
       if (weaponStats) {
-        return weaponStats.reloadTimeSecs * 1000;
+        return getRangedWeaponCooldownDurationMs(weaponStats);
       }
     }
 
@@ -519,12 +520,10 @@ const Hotbar: React.FC<HotbarProps> = ({
       const itemDef = itemDefinitions.get(activeEquipment.equippedItemDefId.toString());
       if (itemDef && itemDef.category.tag === 'RangedWeapon' && rangedWeaponStats) {
         const weaponStats = rangedWeaponStats.get(itemDef.name);
-        const magazineReloadTimeSecs = (weaponStats as any)?.magazineReloadTimeSecs ?? 0;
+        const reloadTimeMs = getRangedWeaponReloadDurationMs(weaponStats);
         
         // Only show overlay if weapon has a reload time > 0
-        if (magazineReloadTimeSecs > 0) {
-          const reloadTimeMs = magazineReloadTimeSecs * 1000;
-          
+        if (reloadTimeMs > 0) {
           // Find which hotbar slot contains the equipped item
           if (activeEquipment.equippedItemInstanceId) {
             for (let slotIndex = 0; slotIndex < numSlots; slotIndex++) {

@@ -124,7 +124,7 @@ import { drawInteractionOutline, drawCircularInteractionOutline, getInteractionO
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
 import { updatePlayerFootprints } from './terrainTrailUtils';
-import { isOceanTileTag } from '../tileTypeGuards';
+import { isOceanTileTag, isWaterTileTag } from '../tileTypeGuards';
 
 // Module-level caches
 const playerDebugStateCache = new Map<string, { prevIsDead: boolean, prevLastHitTime: string | null }>();
@@ -150,10 +150,6 @@ const dodgeRollVisualCache = new Map<string, DodgeRollVisualState>();
 // Movement buffer duration - keep animation going for this long after movement stops
 const MOVEMENT_BUFFER_MS = 150;
 const REMOTE_DODGE_POSITION_BLEND = 0.8;
-
-// Dodge roll constants (should match server)
-const DODGE_ROLL_DURATION_MS = 500;
-const DODGE_ROLL_DISTANCE = 450;
 
 // --- MEMORY OPTIMIZATION: Object Pools ---
 // Reduces garbage collection pressure by reusing objects instead of creating new ones
@@ -1690,6 +1686,12 @@ export const renderYSortedEntities = ({
               animationFrame,
               localPlayerPosition: localPlayerPosition || { x: 0, y: 0 },
               isLocalPlayerSnorkeling, // Pass snorkeling state for underwater rendering (sharks)
+              isOnWaterTile: (worldX: number, worldY: number) => {
+                  if (!connection) return false;
+                  const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+                  const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+                  return isWaterTileTag(tileType);
+              },
               caribouBreedingData, // Pass breeding data for age-based size scaling
               walrusBreedingData, // Pass breeding data for age-based size scaling
           });

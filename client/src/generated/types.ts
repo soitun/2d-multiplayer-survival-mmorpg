@@ -2517,6 +2517,7 @@ export type ProgressType = __Infer<typeof ProgressType>;
 
 export const Projectile = __t.object("Projectile", {
   id: __t.u64(),
+  clientShotId: __t.string(),
   ownerId: __t.identity(),
   itemDefId: __t.u64(),
   ammoDefId: __t.u64(),
@@ -2530,6 +2531,51 @@ export const Projectile = __t.object("Projectile", {
   maxRange: __t.f32(),
 });
 export type Projectile = __Infer<typeof Projectile>;
+
+export const ProjectileResolvedEvent = __t.object("ProjectileResolvedEvent", {
+  id: __t.u64(),
+  projectileId: __t.u64(),
+  clientShotId: __t.string(),
+  posX: __t.f32(),
+  posY: __t.f32(),
+  get reason() {
+    return ProjectileResolvedReason;
+  },
+  get targetKind() {
+    return ProjectileResolvedTargetKind;
+  },
+  targetId: __t.u64(),
+  createdDroppedItem: __t.bool(),
+  timestamp: __t.timestamp(),
+});
+export type ProjectileResolvedEvent = __Infer<typeof ProjectileResolvedEvent>;
+
+// The tagged union or sum type for the algebraic type `ProjectileResolvedReason`.
+export const ProjectileResolvedReason = __t.enum("ProjectileResolvedReason", {
+  Impact: __t.unit(),
+  RangeExpired: __t.unit(),
+  Broken: __t.unit(),
+  Dissipated: __t.unit(),
+});
+export type ProjectileResolvedReason = __Infer<typeof ProjectileResolvedReason>;
+
+// The tagged union or sum type for the algebraic type `ProjectileResolvedTargetKind`.
+export const ProjectileResolvedTargetKind = __t.enum("ProjectileResolvedTargetKind", {
+  None: __t.unit(),
+  World: __t.unit(),
+  Structure: __t.unit(),
+  Deployable: __t.unit(),
+  Animal: __t.unit(),
+  Player: __t.unit(),
+  Corpse: __t.unit(),
+});
+export type ProjectileResolvedTargetKind = __Infer<typeof ProjectileResolvedTargetKind>;
+
+export const ProjectileRuntimeState = __t.object("ProjectileRuntimeState", {
+  projectileId: __t.u64(),
+  lastSampleElapsedSecs: __t.f32(),
+});
+export type ProjectileRuntimeState = __Infer<typeof ProjectileRuntimeState>;
 
 export const ProjectileUpdateSchedule = __t.object("ProjectileUpdateSchedule", {
   id: __t.u64(),

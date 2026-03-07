@@ -1,74 +1,66 @@
 // client/src/config/gameConfig.ts
 // ------------------------------------
-// Centralizes client-side configuration values primarily used for rendering.
-// These values define how the game world *looks* on the client.
-// The server maintains its own authoritative values for game logic and validation,
-// so modifying these client-side values does not pose a security risk.
+// Centralizes client-side access to gameplay-authoritative shared config values.
+// The shared JSON is consumed by both client and server, while this module keeps
+// the existing client-facing API and derives render-friendly values from it.
 // ------------------------------------
 
-// Define base values first
-const TILE_SIZE = 48;
+import { interactionConfig, playerConfig, worldConfig } from './sharedGameConfig';
+
+// Shared gameplay-authoritative values live in shared/config/gameConfig.json.
+const TILE_SIZE = worldConfig.tileSizePx;
 export { TILE_SIZE };
 
-// Foundation grid is 2x world tiles (96px) for larger building pieces
-export const FOUNDATION_TILE_SIZE = 96; // 2x TILE_SIZE
+export const FOUNDATION_TILE_SIZE = worldConfig.foundationTileSizePx;
 
-// --- Server World & Chunk Configuration (Client-Side Assumption - TODO: Make Server-Driven) ---
-// These values MUST match the server's current world generation settings.
-const SERVER_WORLD_WIDTH_TILES = 800; // UPDATED: Assumed width of the server world in tiles (matches lib.rs)
-const SERVER_WORLD_HEIGHT_TILES = 800; // UPDATED: Assumed height of the server world in tiles (matches lib.rs)
-/** Deep sea outer ring tiles from each edge - matches server DEEP_SEA_OUTER_RING_TILES for fallback rendering */
-export const DEEP_SEA_EDGE_TILES = 70;
-// OPTIMIZED: Changed from 5×5 to 16×16 based on performance testing
-// Results: 60-70% reduction in subscriptions, eliminated performance spikes
-// See CHUNK_SIZE_TESTING.md for detailed test results
-const CHUNK_SIZE_TILES = 16;         // Number of tiles along one edge of a square chunk
+const SERVER_WORLD_WIDTH_TILES = worldConfig.widthTiles;
+const SERVER_WORLD_HEIGHT_TILES = worldConfig.heightTiles;
+/** Deep sea outer ring tiles from each edge, shared with the server */
+export const DEEP_SEA_EDGE_TILES = worldConfig.deepSeaEdgeTiles;
+const CHUNK_SIZE_TILES = worldConfig.chunkSizeTiles;
 
 const MINIMAP_GRID_DIAGONAL_TILES = Math.round(SERVER_WORLD_WIDTH_TILES / 5) + 1; // Always 1/5th of server world width, plus 1
 
 // Calculate derived values
-const CHUNK_SIZE_PX = CHUNK_SIZE_TILES * TILE_SIZE; // Size of a chunk in pixels (768px = 16×48)
-const WORLD_WIDTH_CHUNKS = Math.ceil(SERVER_WORLD_WIDTH_TILES / CHUNK_SIZE_TILES); // Width of the world in chunks (25)
-const WORLD_HEIGHT_CHUNKS = Math.ceil(SERVER_WORLD_HEIGHT_TILES / CHUNK_SIZE_TILES); // Height of the world in chunks (25)
-// --- End Server World & Chunk Config ---
+const CHUNK_SIZE_PX = CHUNK_SIZE_TILES * TILE_SIZE;
+const WORLD_WIDTH_CHUNKS = Math.ceil(SERVER_WORLD_WIDTH_TILES / CHUNK_SIZE_TILES);
+const WORLD_HEIGHT_CHUNKS = Math.ceil(SERVER_WORLD_HEIGHT_TILES / CHUNK_SIZE_TILES);
 
 // Calculate derived values for minimap
 const MINIMAP_GRID_CELL_SIZE_PIXELS = Math.round((MINIMAP_GRID_DIAGONAL_TILES / Math.SQRT2) * TILE_SIZE);
 
 export const gameConfig = {
   // Basic sprite and rendering dimensions
-  spriteWidth: 48,
-  spriteHeight: 48,
+  spriteWidth: TILE_SIZE,
+  spriteHeight: TILE_SIZE,
   // Player sprite draw size (2x base for pixel scaling)
   get playerSpriteWidth() { return this.spriteWidth * 2; },
   get playerSpriteHeight() { return this.spriteHeight * 2; },
   worldWidthTiles: SERVER_WORLD_WIDTH_TILES,
   worldHeightTiles: SERVER_WORLD_HEIGHT_TILES,
-  tileSize: 48,
+  tileSize: TILE_SIZE,
 
   // Calculated world dimensions in pixels
   get worldWidthPx() { return this.worldWidthTiles * this.tileSize; },
   get worldHeightPx() { return this.worldHeightTiles * this.tileSize; },
 
   // Player Movement
-  playerSpeed: 320.0, // 6.67 tiles/sec - faster walking (SYNCED WITH SERVER)
-  sprintMultiplier: 1.75, // 1.75x speed for sprinting (560 px/s) - meaningful boost (SYNCED WITH SERVER)
-  crouchMultiplier: 0.5, // Half speed when crouching (120 px/s)
-  waterSpeedPenalty: 0.5, // Speed reduction in water
+  playerSpeed: playerConfig.speedPxPerSecond,
+  sprintMultiplier: playerConfig.sprintMultiplier,
+  crouchMultiplier: playerConfig.crouchRadiusMultiplier,
+  waterSpeedPenalty: playerConfig.waterSpeedPenalty,
 
   // Jumping Mechanics
   jumpHeightPx: 48,      // How high the player jumps visually
   jumpDurationMs: 500,   // How long the jump animation/arc lasts
 
   // Interaction
-  holdInteractionDurationMs: 250, // Time to hold 'E' for default interactions
-  reviveHoldDurationMs: 6000,     // Time to hold 'E' to revive a player
+  holdInteractionDurationMs: interactionConfig.holdDurationMs,
+  reviveHoldDurationMs: interactionConfig.reviveHoldDurationMs,
 
   // Combat
   swingCooldownMs: 500, // Default cooldown for melee swings
 
-  // --- World & Chunk Configuration ---
-  // Values below are based on server config assumptions - should ideally be server-driven.
   serverWorldWidthTiles: SERVER_WORLD_WIDTH_TILES,
   serverWorldHeightTiles: SERVER_WORLD_HEIGHT_TILES,
   chunkSizeTiles: CHUNK_SIZE_TILES,
@@ -77,16 +69,15 @@ export const gameConfig = {
   worldHeightChunks: WORLD_HEIGHT_CHUNKS,
   worldWidth: SERVER_WORLD_WIDTH_TILES,
   worldHeight: SERVER_WORLD_HEIGHT_TILES,
-  // --- End World & Chunk Config ---
 
   // --- Minimap Configuration ---
   // Target diagonal distance (in tiles) a grid cell should represent.
   // Used to dynamically calculate grid cell pixel size.
-  minimapGridCellDiagonalTiles: MINIMAP_GRID_DIAGONAL_TILES, // Assign the constant
+  minimapGridCellDiagonalTiles: MINIMAP_GRID_DIAGONAL_TILES,
 
   // Calculated grid cell size in pixels based on the diagonal tile target.
   // Avoids hardcoding pixel size directly.
-  minimapGridCellSizePixels: MINIMAP_GRID_CELL_SIZE_PIXELS, // Assign the calculated value
+  minimapGridCellSizePixels: MINIMAP_GRID_CELL_SIZE_PIXELS,
 
   // Foundation grid configuration
   foundationTileSize: FOUNDATION_TILE_SIZE,
@@ -198,5 +189,5 @@ export const CAMPFIRE_LIGHT_INNER_COLOR = '#ffaa00'; // Inner color of campfire 
 export const CAMPFIRE_LIGHT_OUTER_COLOR = '#ff6600'; // Outer color of campfire light
 
 // --- Interaction Durations ---
-export const HOLD_INTERACTION_DURATION_MS = 250; // 250ms for fast interactions
-export const REVIVE_HOLD_DURATION_MS = 3000;      // 3 seconds hold to revive a player
+export const HOLD_INTERACTION_DURATION_MS = interactionConfig.holdDurationMs;
+export const REVIVE_HOLD_DURATION_MS = interactionConfig.reviveHoldDurationMs;

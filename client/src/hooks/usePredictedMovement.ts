@@ -29,19 +29,22 @@ import { Player } from '../generated/types';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 import { resolveClientCollision, GameEntities } from '../utils/clientCollision';
 import { gameConfig } from '../config/gameConfig';
+import {
+  DODGE_ROLL_COOLDOWN_MS,
+  DODGE_ROLL_DISTANCE_PX,
+  DODGE_ROLL_DURATION_MS,
+  DODGE_ROLL_SPEED_PX_PER_SEC,
+  EXHAUSTED_SPEED_PENALTY,
+} from '../config/combatConstants';
 
 // Simple client-authoritative movement constants
 const POSITION_UPDATE_INTERVAL_MS = 50; // 20fps server updates - reduces N^2 subscription fan-out while client prediction keeps movement smooth
-const PLAYER_SPEED = 320; // pixels per second - 6.67 tiles/sec (SYNCED WITH SERVER)
-const SPRINT_MULTIPLIER = 1.75; // 1.75x speed for sprinting (560 px/s) (SYNCED WITH SERVER)
+const PLAYER_SPEED = gameConfig.playerSpeed;
+const SPRINT_MULTIPLIER = gameConfig.sprintMultiplier;
 // Dodge roll uses dedicated predicted movement path instead of speed multipliers.
-const WATER_SPEED_PENALTY = 0.5; // Half speed in water (matches server WATER_SPEED_PENALTY)
-const EXHAUSTED_SPEED_PENALTY = 0.75; // 25% speed reduction when exhausted (matches server EXHAUSTED_SPEED_PENALTY)
+const WATER_SPEED_PENALTY = gameConfig.waterSpeedPenalty;
 // Water speed bonus cap (matches server - 2.0 = 200% bonus = 3x speed)
 const MAX_WATER_SPEED_BONUS = 2.0;
-const DODGE_ROLL_DURATION_MS = 500; // Keep synced with server dodge duration
-const DODGE_ROLL_COOLDOWN_MS = 500; // Keep synced with server cooldown
-const DODGE_ROLL_DISTANCE_PX = 450; // Keep synced with server dodge distance
 // REMOVED: Rubber banding constants - proper prediction shouldn't need them
 
 // Helper function to check if a player has the exhausted effect
@@ -432,8 +435,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           const dodgeDirY = dodgeDy / dodgeDistance;
           
           // Calculate how far to move this frame based on dodge roll speed.
-          const DODGE_ROLL_SPEED = 900; // pixels per second (SYNCED WITH SERVER)
-          const moveDistance = DODGE_ROLL_SPEED * dtSec;
+          const moveDistance = DODGE_ROLL_SPEED_PX_PER_SEC * dtSec;
           
           // Calculate remaining distance to target
           const remainingDx = clientDodge.targetX - clientPositionRef.current.x;

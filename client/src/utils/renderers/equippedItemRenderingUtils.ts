@@ -21,20 +21,20 @@
 
 import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated/types';
 import { gameConfig } from '../../config/gameConfig';
-import { PLAYER_RADIUS } from '../clientCollision';
+import {
+  DEFAULT_MELEE_ARC_DEGREES as DEFAULT_ATTACK_ARC_DEGREES,
+  DEFAULT_MELEE_ATTACK_RANGE,
+  SCYTHE_MELEE_ARC_DEGREES,
+  SCYTHE_MELEE_ATTACK_RANGE,
+  SPEAR_MELEE_ARC_DEGREES,
+  SPEAR_MELEE_ATTACK_RANGE,
+} from '../../config/combatConstants';
 
 // --- Constants ---
 const SWING_DURATION_MS = 150;
-
-// === ATTACK RANGE CONSTANTS (must match server/src/active_equipment.rs) ===
-const MELEE_ATTACK_RANGE = PLAYER_RADIUS * 4.5;   // ~144px - default melee range
-const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 8.0;   // ~256px - spear thrust range (server uses 8.0)
-const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - scythe VERY extended range
-
-// Attack arc angles (must match server)
-const DEFAULT_ATTACK_ARC_DEGREES = 90;   // Standard 90° arc
-const SPEAR_ATTACK_ARC_DEGREES = 60;     // Spear narrow thrust cone (server override)
-const SCYTHE_ATTACK_ARC_DEGREES = 150;  // Scythe's massive 150° arc (server override)
+const HUNTING_BOW_RELOAD_MS = 850;
+const CROSSBOW_RELOAD_MS = 2300;
+const HARPOON_GUN_RELOAD_MS = 450;
 
 // Helper to get swing angle from item definition
 // Items with attackArcDegrees defined use that, otherwise default to 90°
@@ -113,6 +113,11 @@ export function shouldIgnoreServerSwing(): boolean {
   return performance.now() < localPlayerSwingGracePeriodEnd;
 }
 
+export function registerLocalPlayerRangedShot(_itemName?: string | null): void {
+  // Intentionally a no-op: local ranged feel is handled by immediate weapon
+  // feedback plus a very short-lived projectile ghost during server handoff.
+}
+
 // --- Melee Swipe Arc (server-pixel-perfect hitbox indicator) ---
 /** Facing direction to radians. Must match server get_player_forward_vector. */
 const getFacingAngleRad = (dir: string): number => {
@@ -130,13 +135,13 @@ const getFacingAngleRad = (dir: string): number => {
 const getWeaponAttackParams = (itemDef: SpacetimeDBItemDefinition): { range: number; arcDegrees: number; isSpear: boolean } => {
   const name = itemDef.name;
   if (name === 'Wooden Spear' || name === 'Stone Spear' || name === 'Reed Harpoon') {
-    return { range: SPEAR_ATTACK_RANGE, arcDegrees: SPEAR_ATTACK_ARC_DEGREES, isSpear: true };
+    return { range: SPEAR_MELEE_ATTACK_RANGE, arcDegrees: SPEAR_MELEE_ARC_DEGREES, isSpear: true };
   }
   if (name === 'Scythe') {
-    return { range: SCYTHE_ATTACK_RANGE, arcDegrees: SCYTHE_ATTACK_ARC_DEGREES, isSpear: false };
+    return { range: SCYTHE_MELEE_ATTACK_RANGE, arcDegrees: SCYTHE_MELEE_ARC_DEGREES, isSpear: false };
   }
   const arc = itemDef.attackArcDegrees ?? DEFAULT_ATTACK_ARC_DEGREES;
-  return { range: MELEE_ATTACK_RANGE, arcDegrees: arc, isSpear: false };
+  return { range: DEFAULT_MELEE_ATTACK_RANGE, arcDegrees: arc, isSpear: false };
 };
 
 /**
@@ -246,7 +251,7 @@ export function renderMeleeSwipeArcIfSwinging(
   const swingProgress = elapsedSwingTime / SWING_DURATION_MS;
   const isSpearThrusting = isSpearItem;
   if (isSpearThrusting) {
-    thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_ATTACK_RANGE;
+    thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_MELEE_ATTACK_RANGE;
   }
 
   const originX = player.positionX;
@@ -630,6 +635,13 @@ export const renderEquippedItem = (
   let loadedArrowImage: HTMLImageElement | undefined = undefined;
   const isRangedWeaponWithVisibleAmmo = itemDef.name === "Hunting Bow" || itemDef.name === "Crossbow" || itemDef.name === "Reed Harpoon Gun";
   if (isRangedWeaponWithVisibleAmmo && equipment.isReadyToFire && equipment.loadedAmmoDefId && itemDefinitions) {
+    const isLocalAmmoOwner = !!localPlayerId && player.identity.toHexString() === localPlayerId;
+    if (isLocalAmmoOwner) {
+      // Never draw the local player's nocked ammo sprite. The local player already
+      // gets reticle/weapon feedback, and showing held ammo here can read as a
+      // second in-flight arrow when the projectile itself is also rendered.
+      loadedArrowImage = undefined;
+    } else {
     // Reed Harpoon Gun: No reload delay visual - dart shows immediately like a gun
     // Bows/Crossbows: Have reload animations so we wait for cooldown before showing ammo
     const isHarpoonGun = itemDef.name === "Reed Harpoon Gun";
@@ -639,8 +651,6 @@ export const renderEquippedItem = (
     if (!isHarpoonGun) {
       // Check if reload cooldown has elapsed since last shot (swing_start_time_ms)
       // Hunting Bow: 850ms reload, Crossbow: 2300ms reload
-      const HUNTING_BOW_RELOAD_MS = 850;
-      const CROSSBOW_RELOAD_MS = 2300;
       let reloadTimeMs = itemDef.name === "Crossbow" ? CROSSBOW_RELOAD_MS : HUNTING_BOW_RELOAD_MS;
       
       const lastShotTimeMs = Number(equipment.swingStartTimeMs);
@@ -656,6 +666,7 @@ export const renderEquippedItem = (
               // console.warn(`[RenderEquipped] Image for loaded ammo '${ammoDef.iconAssetName}' not found.`);
           }
       }
+    }
     }
   }
   // --- END Arrow/Dart Rendering ---
@@ -744,7 +755,7 @@ export const renderEquippedItem = (
       
       if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
           isSpearThrusting = true;
-          thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_ATTACK_RANGE;
+          thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_MELEE_ATTACK_RANGE;
           
           // Apply thrust directly to pivotX/pivotY based on world direction
           // The `rotation` variable (which is spearRotation) is for the visual angle.

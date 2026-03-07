@@ -34,6 +34,7 @@ import { gameConfig } from '../config/gameConfig';
 import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUtils';
 import { triggerBarrelDestructionEffect } from '../utils/renderers/barrelRenderingUtils';
 import { runtimeEngine } from '../engine/runtimeEngine';
+import { recordProjectileDebugEvent } from '../utils/projectileDebug';
 import { subscribeNonSpatialQueries } from '../engine/adapters/spacetime/nonSpatialSubscriptions';
 import { subscribeChunkBatches } from '../engine/adapters/spacetime/spatialSubscriptions';
 
@@ -1554,6 +1555,19 @@ export const useSpacetimeTables = ({
 
             const handleProjectileInsert = (ctx: any, projectile: SpacetimeDBProjectile) => {
                 projectilesRef.current.set(projectile.id.toString(), projectile);
+                const localIdentity = connection?.identity?.toHexString?.();
+                const ownerId = projectile.ownerId?.toHexString?.();
+                if (localIdentity && ownerId === localIdentity && projectile.sourceType === 0) {
+                    recordProjectileDebugEvent('table-insert', {
+                        id: projectile.id.toString(),
+                        clientShotId: projectile.clientShotId,
+                        ownerId,
+                        startPosX: projectile.startPosX,
+                        startPosY: projectile.startPosY,
+                        velocityX: projectile.velocityX,
+                        velocityY: projectile.velocityY,
+                    });
+                }
                 // CRITICAL: Flush inserts immediately so newly-fired projectiles are visible
                 // from their first replicated frame. If insert+delete are coalesced inside
                 // the 50ms batch window, the projectile can otherwise be skipped entirely.
@@ -1564,6 +1578,15 @@ export const useSpacetimeTables = ({
                 scheduleProjectileUpdate();
             };
             const handleProjectileDelete = (ctx: any, projectile: SpacetimeDBProjectile) => {
+                const localIdentity = connection?.identity?.toHexString?.();
+                const ownerId = projectile.ownerId?.toHexString?.();
+                if (localIdentity && ownerId === localIdentity && projectile.sourceType === 0) {
+                    recordProjectileDebugEvent('table-delete', {
+                        id: projectile.id.toString(),
+                        clientShotId: projectile.clientShotId,
+                        ownerId,
+                    });
+                }
                 projectilesRef.current.delete(projectile.id.toString());
                 scheduleProjectileUpdate();
             };
@@ -2554,6 +2577,7 @@ export const useSpacetimeTables = ({
                 { query: 'SELECT * FROM knocked_out_status', errorPrefix: "[useSpacetimeTables] Subscription for 'knocked_out_status' ERROR:" },
                 { query: 'SELECT * FROM ranged_weapon_stats', errorLabel: 'RANGED_WEAPON_STATS' },
                 { query: 'SELECT * FROM projectile', errorLabel: 'PROJECTILE' },
+                { query: 'SELECT * FROM projectile_resolved_event', errorLabel: 'PROJECTILE_RESOLVED_EVENT' },
                 { query: 'SELECT * FROM death_marker', errorLabel: 'DEATH_MARKER' },
                 { query: 'SELECT * FROM shelter', errorLabel: 'SHELTER' },
                 { query: 'SELECT * FROM arrow_break_event', errorLabel: 'ARROW_BREAK_EVENT' },
