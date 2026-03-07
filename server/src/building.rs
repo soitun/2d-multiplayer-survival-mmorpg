@@ -74,7 +74,7 @@ pub const BUILDING_PLACEMENT_MAX_DISTANCE: f32 = 128.0;
 pub const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;
 
 // Foundation grid is 2x world tiles (96px) for larger building pieces
-pub const FOUNDATION_TILE_SIZE_PX: u32 = 96; // 2x TILE_SIZE_PX
+pub const FOUNDATION_TILE_SIZE_PX: u32 = crate::shared_config::FOUNDATION_TILE_SIZE_PX;
 
 // --- Foundation Cell Table ---
 #[spacetimedb::table(

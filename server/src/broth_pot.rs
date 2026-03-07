@@ -35,7 +35,7 @@ use crate::ai_brewing;
 
 // --- Constants ---
 pub const NUM_INGREDIENT_SLOTS: usize = 3;
-pub const MAX_WATER_CAPACITY_ML: u32 = 5000; // 5 liters
+pub const MAX_WATER_CAPACITY_ML: u32 = crate::shared_config::BROTH_POT_MAX_WATER_CAPACITY_ML; // 5 liters
 pub const BROTH_POT_INITIAL_HEALTH: f32 = 100.0;
 pub const BROTH_POT_MAX_HEALTH: f32 = 100.0;
 pub const BROTH_POT_PROCESS_INTERVAL_SECS: u64 = 1;
@@ -61,7 +61,7 @@ pub const DESALINATION_RATE_ML_PER_SEC: f32 = 25.0; // 25ml/sec = 1500ml/min = 9
 // At this rate, a full 5L pot takes ~3.3 minutes to desalinate completely
 
 // Brewing water requirement - each brew uses 250mL of water (produces one jar/vial of brew)
-pub const BREWING_WATER_REQUIREMENT_ML: u32 = 250;
+pub const BREWING_WATER_REQUIREMENT_ML: u32 = crate::shared_config::BREWING_WATER_REQUIREMENT_ML;
 
 // Brew time limits - fast-paced PvP game, keep brewing quick
 pub const MIN_BREW_TIME_SECS: f32 = 15.0;

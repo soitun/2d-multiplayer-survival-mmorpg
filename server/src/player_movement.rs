@@ -33,12 +33,9 @@ use crate::grass::GrassAppearanceType;
 use crate::sound_events::emit_walking_sound;
 use crate::sound_events::emit_swimming_sound;
 use crate::sound_events::emit_snorkel_emerge_sound;
-
-// === DODGE ROLL CONSTANTS ===
-pub const DODGE_ROLL_DISTANCE: f32 = 450.0; // Distance covered during dodge roll
-pub const DODGE_ROLL_DURATION_MS: u64 = 500; // 500ms duration for full animation
-pub const DODGE_ROLL_COOLDOWN_MS: u64 = 500; // 500ms cooldown - prevents spam but allows tactical use
-pub const DODGE_ROLL_SPEED: f32 = DODGE_ROLL_DISTANCE / (DODGE_ROLL_DURATION_MS as f32 / 1000.0); // 900 px/s
+use crate::shared_config::{DODGE_ROLL_COOLDOWN_MS, DODGE_ROLL_DISTANCE_PX, DODGE_ROLL_DURATION_MS, DODGE_ROLL_SPEED_PX_PER_SEC};
+pub const DODGE_ROLL_DISTANCE: f32 = DODGE_ROLL_DISTANCE_PX;
+pub const DODGE_ROLL_SPEED: f32 = DODGE_ROLL_SPEED_PX_PER_SEC;
 
 // Table to track dodge roll state for each player
 #[spacetimedb::table(accessor = player_dodge_roll_state, public)]

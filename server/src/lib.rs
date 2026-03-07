@@ -54,6 +54,7 @@ macro_rules! try_insert_schedule {
 }
 
 // Declare the module
+mod shared_config;
 mod environment;
 mod tree; // Add tree module
 mod stone; // Add stone module
@@ -565,14 +566,17 @@ use crate::campfire::{Campfire, WARMTH_RADIUS_SQUARED, WARMTH_PER_SECOND, CAMPFI
 // Initial Amounts
 
 // --- Global Constants ---
-pub const TILE_SIZE_PX: u32 = 48;
 pub const MAX_PLAYERS: usize = 50;
-pub const PLAYER_RADIUS: f32 = 32.0; // Player collision radius
-pub const PLAYER_SPEED: f32 = 320.0; // Speed in pixels per second - 6.67 tiles/sec (SYNCED WITH CLIENT)
-pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.75; // 1.75x speed for sprinting (560 px/s) - SYNCED WITH CLIENT
-
-// ADD: Crouching reduces collision radius by half  
-pub const CROUCHING_RADIUS_MULTIPLIER: f32 = 0.5;
+pub use shared_config::{
+    CROUCHING_RADIUS_MULTIPLIER,
+    PLAYER_RADIUS,
+    PLAYER_SPEED,
+    PLAYER_SPRINT_MULTIPLIER,
+    TILE_SIZE_PX,
+    WATER_SPEED_PENALTY,
+    WORLD_HEIGHT_TILES,
+    WORLD_WIDTH_TILES,
+};
 
 // ADD: Helper function to get effective player radius based on crouching state
 pub fn get_effective_player_radius(is_crouching: bool) -> f32 {
@@ -583,12 +587,7 @@ pub fn get_effective_player_radius(is_crouching: bool) -> f32 {
     }
 }
 
-// ADD: Water movement constants
-pub const WATER_SPEED_PENALTY: f32 = 0.5; // 50% speed reduction (50% of normal speed)
-
 // World Dimensions
-pub const WORLD_WIDTH_TILES: u32 = 800;
-pub const WORLD_HEIGHT_TILES: u32 = 800;
 // Change back to f32 as they are used in float calculations
 pub const WORLD_WIDTH_PX: f32 = (WORLD_WIDTH_TILES * TILE_SIZE_PX) as f32;
 pub const WORLD_HEIGHT_PX: f32 = (WORLD_HEIGHT_TILES * TILE_SIZE_PX) as f32;

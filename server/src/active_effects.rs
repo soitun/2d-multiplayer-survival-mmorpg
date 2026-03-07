@@ -383,7 +383,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             let dx = healer.position_x - target.position_x;
                             let dy = healer.position_y - target.position_y;
                             let distance = (dx * dx + dy * dy).sqrt();
-                            const HEALING_RANGE: f32 = 4.0 * 32.0; // Must match the range in use_equipped_item (4 tiles)
+                            const HEALING_RANGE: f32 = crate::shared_config::REMOTE_HEALING_RANGE_PX;
                             in_range = distance <= HEALING_RANGE;
                             
                             if !in_range {
@@ -1548,8 +1548,7 @@ pub const MAX_BLEED_DURATION_SECONDS: f32 = 30.0; // 30 seconds max
 // Exhausted Effect Management
 // ===========================
 
-// Exhausted effect speed penalty constant
-pub const EXHAUSTED_SPEED_PENALTY: f32 = 0.75; // 25% speed reduction when exhausted
+pub use crate::shared_config::EXHAUSTED_SPEED_PENALTY;
 
 /// Checks if a player should have the exhausted effect based on low hunger or thirst only
 /// Player is exhausted when hunger OR thirst drops below 20% of maximum

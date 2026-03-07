@@ -76,11 +76,12 @@ use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use std::collections::HashSet;
 
+pub use crate::shared_config::{CHUNK_SIZE_TILES, DEEP_SEA_OUTER_RING_TILES};
+
 // --- Outer Deep Sea Ring (800x800 map) ---
 /// Tiles from each edge that form the "empty deep sea" ring - no spawns for CPU performance.
 /// Kept moderate (~70) so there's a clear band of normal sea between coast and deep ocean.
 /// Island is fixed-size (doesn't scale with map), so sea zone stays large.
-pub const DEEP_SEA_OUTER_RING_TILES: u32 = 70;
 
 /// Returns true if position is in the outer deep sea ring (within DEEP_SEA_OUTER_RING_TILES of any edge).
 /// Used to exclude sea stacks, barrels, coral, wild animals from the empty outer ocean.
@@ -106,7 +107,6 @@ const SEA_STACK_SPAWN_NOISE_THRESHOLD: f64 = 0.3; // Noise threshold for spawnin
 // OPTIMIZED: Changed from 5×5 to 16×16 based on performance testing
 // Results: 60-70% reduction in subscriptions, eliminated performance spikes
 // See CHUNK_SIZE_TESTING.md for detailed test results
-pub const CHUNK_SIZE_TILES: u32 = 16;
 // World dimensions in chunks
 pub const WORLD_WIDTH_CHUNKS: u32 = (WORLD_WIDTH_TILES + CHUNK_SIZE_TILES - 1) / CHUNK_SIZE_TILES;
 pub const WORLD_HEIGHT_CHUNKS: u32 = (WORLD_HEIGHT_TILES + CHUNK_SIZE_TILES - 1) / CHUNK_SIZE_TILES;

@@ -2417,7 +2417,14 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
     let distance = (dx * dx + dy * dy).sqrt();
     
     if distance > 0.0 {
-        let move_distance = speed * dt;
+        let effective_speed = if animal.species == AnimalSpecies::BeachCrab
+            && (is_water_tile(ctx, animal.pos_x, animal.pos_y) || is_water_tile(ctx, target_x, target_y))
+        {
+            speed * 0.5
+        } else {
+            speed
+        };
+        let move_distance = effective_speed * dt;
         let normalize_factor = if distance <= move_distance {
             1.0
         } else {

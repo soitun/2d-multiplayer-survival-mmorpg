@@ -28,6 +28,15 @@ use crate::tilled_tiles;
 use crate::consumables::MAX_HEALTH_VALUE;
 use crate::consumables::apply_item_effects_and_consume;
 use crate::active_effects::{ActiveConsumableEffect, EffectType, cancel_bleed_effects, cancel_health_regen_effects, active_consumable_effect as ActiveConsumableEffectTableTrait, cancel_bandage_burst_effects};
+use crate::shared_config::{
+    DEFAULT_MELEE_ARC_DEGREES,
+    DEFAULT_MELEE_RANGE_MULTIPLIER,
+    REMOTE_HEALING_RANGE_PX,
+    SCYTHE_MELEE_ARC_DEGREES,
+    SCYTHE_MELEE_RANGE_MULTIPLIER,
+    SPEAR_MELEE_ARC_DEGREES,
+    SPEAR_MELEE_RANGE_MULTIPLIER,
+};
 
 // Collision constants
 use crate::tree::{TREE_COLLISION_Y_OFFSET, PLAYER_TREE_COLLISION_DISTANCE_SQUARED};
@@ -851,7 +860,7 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
             .ok_or_else(|| "Player not found for medical consumable use".to_string())?;
 
         // Find nearby players within healing range (use a reasonable range, e.g., 4 tiles)
-        const HEALING_RANGE: f32 = 4.0 * 32.0; // 4 tiles * 32 pixels per tile (increased from 2 tiles)
+        const HEALING_RANGE: f32 = REMOTE_HEALING_RANGE_PX;
         let mut nearest_wounded_player: Option<(Identity, f32)> = None; // (player_id, distance)
 
         for other_player in players_table.iter() {
@@ -958,11 +967,11 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     }
 
     // Default values for attack - BALANCED MELEE
-    let mut actual_attack_range = PLAYER_RADIUS * 4.5; // ~144px - tighter melee range
+    let mut actual_attack_range = PLAYER_RADIUS * DEFAULT_MELEE_RANGE_MULTIPLIER;
     
     // Use per-weapon attack arc if defined, otherwise default to 90 degrees
     // Weapons like Scythe have wider arcs (120°) for efficient grass clearing
-    let mut actual_attack_angle_degrees = item_def.attack_arc_degrees.unwrap_or(90.0);
+    let mut actual_attack_angle_degrees = item_def.attack_arc_degrees.unwrap_or(DEFAULT_MELEE_ARC_DEGREES);
 
     // Check if the item is a spear and adjust its properties
     // SPEARS: Thrusting weapons with FOCUSED arc and VERY LONG range
@@ -970,10 +979,10 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     // (server only stores up/down/left/right, so we need some tolerance for diagonal aiming)
     if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" || item_def.name == "Reed Harpoon" {
         // Spears have the longest melee range - their defining advantage
-        actual_attack_range = PLAYER_RADIUS * 8.0; // ~256px - excellent reach for thrusting
+        actual_attack_range = PLAYER_RADIUS * SPEAR_MELEE_RANGE_MULTIPLIER;
         // 60° arc (30° each side) - narrower than swing weapons, but forgiving enough
         // for the cardinal-direction limitation
-        actual_attack_angle_degrees = 60.0;
+        actual_attack_angle_degrees = SPEAR_MELEE_ARC_DEGREES;
         log::debug!("{} detected: Using THRUST hitbox - range {:.1}px, arc {:.1}°", 
                    item_def.name, actual_attack_range, actual_attack_angle_degrees);
     }
@@ -982,8 +991,8 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     // Multi-hit all targets in arc is handled below in the attack processing
     let is_scythe = item_def.name == "Scythe";
     if is_scythe {
-        actual_attack_range = PLAYER_RADIUS * 7.0; // ~224px - LONG sweep range (longer than spears!)
-        actual_attack_angle_degrees = 150.0; // Override to 150° - MASSIVE arc for efficient clearing
+        actual_attack_range = PLAYER_RADIUS * SCYTHE_MELEE_RANGE_MULTIPLIER;
+        actual_attack_angle_degrees = SCYTHE_MELEE_ARC_DEGREES;
         log::debug!("Scythe detected: Using extended range {:.1}, wide arc {:.1}°", actual_attack_range, actual_attack_angle_degrees);
     }
 

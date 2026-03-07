@@ -18,26 +18,26 @@ use crate::world_state::chunk_weather as ChunkWeatherTableTrait;
 use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
 use crate::sound_events;
 use crate::environment::{calculate_chunk_index, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT_CHUNKS};
+use crate::shared_config::{
+    AFTERNOON_START_PROGRESS,
+    DAWN_END_PROGRESS,
+    DUSK_START_PROGRESS,
+    FULL_CYCLE_DURATION_SECONDS,
+    FULL_MOON_CYCLE_INTERVAL,
+    MIDNIGHT_START_PROGRESS,
+    NIGHT_START_PROGRESS,
+    NOON_START_PROGRESS,
+    TWILIGHT_EVENING_START_PROGRESS,
+    TWILIGHT_MORNING_START_PROGRESS,
+};
 
 // Define fuel consumption rate (items per second)
 const FUEL_ITEM_CONSUME_PER_SECOND: f32 = 0.2; // e.g., 1 wood every 5 seconds
-
-// --- Constants ---
-// Balanced cycle for survival game with meaningful night threat
-// 30-minute total cycle: 20 min day + 10 min night
-// Night has 3 phases: Early tension (Dusk), Peak pressure (Night), Desperate hour (Midnight)
-// Players get 2 full cycles per hour-long session
-const DAY_DURATION_SECONDS: f32 = 1200.0; // 20 minutes  
-const NIGHT_DURATION_SECONDS: f32 = 600.0;  // 10 minutes (doubled for meaningful night arc)
-const FULL_CYCLE_DURATION_SECONDS: f32 = DAY_DURATION_SECONDS + NIGHT_DURATION_SECONDS; // 30 minutes total
 
 // Season duration constants for plant respawn calculations
 // 240 in-game days per season × 30 min per day = 120 real hours = 5 real days per season
 pub const DAYS_PER_SEASON: u32 = 240;
 pub const SEASON_DURATION_HOURS: f32 = 240.0 * 24.0; // 240 days per season * 24 hours per day = 5760 hours
-
-// Full moon occurs roughly every 3 cycles (adjust as needed)
-const FULL_MOON_CYCLE_INTERVAL: u32 = 3;
 
 // Update interval for the tick reducer (e.g., every 5 seconds)
 // const TICK_INTERVAL_SECONDS: u64 = 5; // We are currently ticking on player move
@@ -1175,24 +1175,21 @@ pub fn tick_world_state(ctx: &ReducerContext, _timestamp: Timestamp) -> Result<(
              log::info!("Cycle {} Full Moon status: {}", new_cycle_count, new_is_full_moon);
         }
 
-        // Determine the new TimeOfDay based on new_progress
-        // Day is now 0.0 to 0.8 (20min), Night is 0.8 to 1.0 (5min)
-        // Progress thresholds remain the same (0.0-1.0), durations scale proportionally
+        // Determine the new TimeOfDay based on shared progress thresholds.
+        // The current shared cadence is 20 minutes of day and 10 minutes of night.
         // Correct cycle order: Night -> Midnight -> TwilightMorning -> Dawn -> Morning -> Noon -> Afternoon -> Dusk -> TwilightEvening -> Night
-        // Ranges: Night (0.80-0.92) -> Midnight (0.92-0.97) -> TwilightMorning (0.97-1.0) -> Dawn (0.0-0.05) -> ...
+        // Ranges: Night -> Midnight -> TwilightMorning -> Dawn -> Morning -> Noon -> Afternoon -> Dusk -> TwilightEvening -> Night
         let new_time_of_day = match new_progress {
-            // Check TwilightMorning FIRST (0.97-1.0) - wraps around, comes AFTER Midnight
-            p if p >= 0.97 => TimeOfDay::TwilightMorning, // Purple (0.97 - 1.0) - wraps around
-            // Then check Midnight (0.92-0.97) - comes after Night, before TwilightMorning
-            p if p >= 0.92 && p < 0.97 => TimeOfDay::Midnight, // Very Dark Blue/Black (0.92 - 0.97)
-            // Then check Dawn (0.0-0.05) - comes AFTER TwilightMorning (wraps around)
-            p if p < 0.05 => TimeOfDay::Dawn,     // Orange (0.0 - 0.05) - 1.25min
-            p if p < 0.35 => TimeOfDay::Morning,   // Yellow (0.05 - 0.35) - 7.5min
-            p if p < 0.55 => TimeOfDay::Noon,      // Bright Yellow (0.35 - 0.55) - 5min
-            p if p < 0.72 => TimeOfDay::Afternoon, // Yellow (0.55 - 0.72) - 4.25min
-            p if p < 0.76 => TimeOfDay::Dusk,      // Orange (0.72 - 0.76) - 1min
-            p if p < 0.80 => TimeOfDay::TwilightEvening, // Purple (0.76 - 0.80) - 1min
-            p if p < 0.92 => TimeOfDay::Night,     // Dark Blue (0.80 - 0.92) - 3min
+            // Check TwilightMorning FIRST because it wraps at the end of the cycle.
+            p if p >= TWILIGHT_MORNING_START_PROGRESS => TimeOfDay::TwilightMorning,
+            p if p >= MIDNIGHT_START_PROGRESS && p < TWILIGHT_MORNING_START_PROGRESS => TimeOfDay::Midnight,
+            p if p < DAWN_END_PROGRESS => TimeOfDay::Dawn,
+            p if p < NOON_START_PROGRESS => TimeOfDay::Morning,
+            p if p < AFTERNOON_START_PROGRESS => TimeOfDay::Noon,
+            p if p < DUSK_START_PROGRESS => TimeOfDay::Afternoon,
+            p if p < TWILIGHT_EVENING_START_PROGRESS => TimeOfDay::Dusk,
+            p if p < NIGHT_START_PROGRESS => TimeOfDay::TwilightEvening,
+            p if p < MIDNIGHT_START_PROGRESS => TimeOfDay::Night,
             _             => TimeOfDay::Midnight, // Fallback (should never reach here)
         };
 

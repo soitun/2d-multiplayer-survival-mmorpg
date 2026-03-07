@@ -49,20 +49,21 @@ use crate::wild_animal_npc::{wild_animal as WildAnimalTableTrait};
 use crate::turret::{self, TALLOW_PROJECTILE_DAMAGE};
 use crate::turret::turret as TurretTableTrait;
 use crate::environment::{calculate_chunk_index, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT_CHUNKS};
-
-const GRAVITY: f32 = 600.0; // Adjust this value to change the arc. Positive values pull downwards.
-
-// Projectile source type constants
-pub const PROJECTILE_SOURCE_PLAYER: u8 = 0;
-pub const PROJECTILE_SOURCE_TURRET: u8 = 1;
-pub const PROJECTILE_SOURCE_NPC: u8 = 2;
-pub const PROJECTILE_SOURCE_MONUMENT_TURRET: u8 = 3;
-
-// NPC projectile type constants (used for client-side rendering)
-pub const NPC_PROJECTILE_NONE: u8 = 0;        // Standard/not NPC
-pub const NPC_PROJECTILE_SPECTRAL_SHARD: u8 = 1;  // Shardkin: blue/purple ice shard
-pub const NPC_PROJECTILE_SPECTRAL_BOLT: u8 = 2;   // Shorebound: ghostly white bolt
-pub const NPC_PROJECTILE_VENOM_SPITTLE: u8 = 3;   // Viper: green toxic glob
+pub use crate::shared_config::{
+    NPC_PROJECTILE_NONE,
+    NPC_PROJECTILE_SPECTRAL_BOLT,
+    NPC_PROJECTILE_SPECTRAL_SHARD,
+    NPC_PROJECTILE_VENOM_SPITTLE,
+    PROJECTILE_FIREARM_GRAVITY_MULTIPLIER,
+    PROJECTILE_GRAVITY as GRAVITY,
+    PROJECTILE_NPC_PLAYER_HIT_RADIUS,
+    PROJECTILE_PLAYER_HIT_RADIUS,
+    PROJECTILE_SOURCE_MONUMENT_TURRET,
+    PROJECTILE_SOURCE_NPC,
+    PROJECTILE_SOURCE_PLAYER,
+    PROJECTILE_SOURCE_TURRET,
+    PROJECTILE_STRAIGHT_LINE_GRAVITY_MULTIPLIER,
+};
 
 // NPC ranged attack constants
 pub const NPC_RANGED_COUNTER_COOLDOWN_MS: i64 = 2000; // 2 second cooldown between ranged counter-attacks
@@ -160,6 +161,7 @@ pub struct Projectile {
     #[primary_key]
     #[auto_inc]
     pub id: u64,
+    pub client_shot_id: String,
     pub owner_id: Identity,
     pub item_def_id: u64,
     pub ammo_def_id: u64, // NEW: The ammunition type that was fired (e.g., Wooden Arrow)
@@ -171,6 +173,14 @@ pub struct Projectile {
     pub velocity_x: f32,
     pub velocity_y: f32,
     pub max_range: f32,
+}
+
+#[table(accessor = projectile_runtime_state)]
+#[derive(Clone, Debug)]
+pub struct ProjectileRuntimeState {
+    #[primary_key]
+    pub projectile_id: u64,
+    pub last_sample_elapsed_secs: f32,
 }
 
 // Scheduled table for projectile updates
@@ -192,6 +202,82 @@ pub struct ArrowBreakEvent {
     pub pos_x: f32,
     pub pos_y: f32,
     pub timestamp: Timestamp,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, SpacetimeType)]
+pub enum ProjectileResolvedReason {
+    Impact,
+    RangeExpired,
+    Broken,
+    Dissipated,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, SpacetimeType)]
+pub enum ProjectileResolvedTargetKind {
+    None,
+    World,
+    Structure,
+    Deployable,
+    Animal,
+    Player,
+    Corpse,
+}
+
+#[table(accessor = projectile_resolved_event, public)]
+#[derive(Clone, Debug)]
+pub struct ProjectileResolvedEvent {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub projectile_id: u64,
+    pub client_shot_id: String,
+    pub pos_x: f32,
+    pub pos_y: f32,
+    pub reason: ProjectileResolvedReason,
+    pub target_kind: ProjectileResolvedTargetKind,
+    pub target_id: u64,
+    pub created_dropped_item: bool,
+    pub timestamp: Timestamp,
+}
+
+#[derive(Clone, Debug)]
+struct PendingProjectileResolution {
+    projectile_id: u64,
+    client_shot_id: String,
+    pos_x: f32,
+    pos_y: f32,
+    reason: ProjectileResolvedReason,
+    target_kind: ProjectileResolvedTargetKind,
+    target_id: u64,
+}
+
+fn insert_projectile_with_runtime_state(ctx: &ReducerContext, projectile: Projectile) -> Projectile {
+    let inserted = ctx.db.projectile().insert(projectile);
+    ctx.db.projectile_runtime_state().insert(ProjectileRuntimeState {
+        projectile_id: inserted.id,
+        last_sample_elapsed_secs: 0.0,
+    });
+    inserted
+}
+
+fn queue_projectile_resolution(
+    resolutions: &mut Vec<PendingProjectileResolution>,
+    projectile: &Projectile,
+    pos_x: f32,
+    pos_y: f32,
+    reason: ProjectileResolvedReason,
+    target_kind: ProjectileResolvedTargetKind,
+    target_id: u64,
+) {
+    resolutions.push(PendingProjectileResolution {
+        projectile_id: projectile.id,
+        client_shot_id: projectile.client_shot_id.clone(),
+        pos_x,
+        pos_y,
+        reason,
+        target_kind,
+        target_id,
+    });
 }
 
 /// Create a projectile fired by an NPC (hostile apparitions, vipers, etc.)
@@ -238,6 +324,7 @@ pub fn fire_npc_projectile(
     // The damage is determined by projectile_type, not weapon definitions
     let projectile = Projectile {
         id: 0, // auto_inc
+        client_shot_id: String::new(),
         owner_id: ctx.identity(), // Module identity for NPC projectiles
         item_def_id: npc_id, // Store NPC ID for tracking (not an actual item)
         ammo_def_id: (damage * 100.0) as u64, // Encode damage * 100 for retrieval (e.g., 8.0 -> 800)
@@ -251,7 +338,7 @@ pub fn fire_npc_projectile(
         max_range: adjusted_max_range,
     };
     
-    let inserted = ctx.db.projectile().insert(projectile);
+    let inserted = insert_projectile_with_runtime_state(ctx, projectile);
     log::info!("[NPC Projectile] NPC {} fired type {} projectile from ({:.1}, {:.1}) toward ({:.1}, {:.1}) with speed {:.1}", 
               npc_id, projectile_type, spawn_x, spawn_y, target_player_x, target_player_y, speed);
     
@@ -295,6 +382,7 @@ pub fn fire_projectile(
     target_world_y: f32,
     client_player_x: f32,  // Client's predicted position
     client_player_y: f32,
+    client_shot_id: String,
 ) -> Result<(), String> {
     let player_id = ctx.sender();
     
@@ -623,7 +711,7 @@ pub fn fire_projectile(
         log::info!("{} fired: straight-line trajectory. Distance: {:.1}, Time: {:.3}s", item_def.name, distance, time_to_target);
     } else if item_def.name == "Makarov PM" || item_def.name == "PP-91 KEDR" {
         // Firearms use fast arc physics - very fast projectile with reduced gravity (0.15 multiplier)
-        let firearm_gravity = g * 0.15; // 15% of normal gravity for fast arc
+        let firearm_gravity = g * PROJECTILE_FIREARM_GRAVITY_MULTIPLIER;
         let distance = distance_sq.sqrt();
         
         // For firearms, use simplified arc calculation with reduced gravity
@@ -725,6 +813,7 @@ pub fn fire_projectile(
     // Create projectile using validated spawn position
     let projectile = Projectile {
         id: 0, // auto_inc
+        client_shot_id,
         owner_id: player_id,
         item_def_id: equipped_item_def_id,
         ammo_def_id: loaded_ammo_def_id,
@@ -738,7 +827,7 @@ pub fn fire_projectile(
         max_range: max_range, // Use modified max_range for ammunition-specific flight limit
     };
 
-    ctx.db.projectile().insert(projectile);
+    insert_projectile_with_runtime_state(ctx, projectile);
 
     // Play weapon-specific shooting sound at spawn position
     if item_def.name == "Crossbow" {
@@ -1187,10 +1276,20 @@ fn consume_projectile_on_impact(
     impact_y: f32,
     missed_projectiles_for_drops: &mut Vec<(u64, u64, f32, f32)>,
     projectiles_to_delete: &mut Vec<u64>,
+    pending_resolutions: &mut Vec<PendingProjectileResolution>,
 ) {
     if let Some(ammo_item_def) = ammo_item_def_cached {
         create_fire_patch_if_fire_arrow(ctx, ammo_item_def, impact_x, impact_y, projectile.owner_id);
     }
+    queue_projectile_resolution(
+        pending_resolutions,
+        projectile,
+        impact_x,
+        impact_y,
+        ProjectileResolvedReason::Impact,
+        ProjectileResolvedTargetKind::None,
+        0,
+    );
     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
     projectiles_to_delete.push(projectile.id);
 }
@@ -1213,6 +1312,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
     let mut projectiles_to_delete = Vec::new();
     let mut missed_projectiles_for_drops = Vec::new(); // Store missed projectiles for drop creation
+    let mut pending_resolutions = Vec::new();
 
     for projectile in ctx.db.projectile().iter() {
         let start_time_secs = projectile.start_time.to_micros_since_unix_epoch() as f64 / 1_000_000.0;
@@ -1224,12 +1324,12 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         // Get weapon definition to determine gravity effect
         // Monument turret projectiles fire in a straight line - no gravity
         let gravity_multiplier = if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
-            0.0 // Monument turret projectiles have no gravity (direct trajectory at high speed)
+            PROJECTILE_STRAIGHT_LINE_GRAVITY_MULTIPLIER
         } else if let Some(weapon_def) = weapon_item_def_cached.as_ref() {
             if weapon_def.name == "Crossbow" || weapon_def.name == "Hunting Bow" {
-                0.0 // Crossbow/Hunting Bow projectiles have NO gravity effect (straight line)
+                PROJECTILE_STRAIGHT_LINE_GRAVITY_MULTIPLIER
             } else if weapon_def.name == "Makarov PM" || weapon_def.name == "PP-91 KEDR" {
-                0.15 // Firearm projectiles have minimal gravity effect (fast arc)
+                PROJECTILE_FIREARM_GRAVITY_MULTIPLIER
             } else {
                 1.0 // Bow projectiles have full gravity effect
             }
@@ -1249,8 +1349,12 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         let current_x = projectile.start_pos_x + projectile.velocity_x * elapsed_time as f32;
         let current_y = projectile.start_pos_y + projectile.velocity_y * elapsed_time as f32 + 0.5 * GRAVITY * final_gravity_multiplier * (elapsed_time as f32).powi(2);
         
-        // Calculate previous position (75ms ago) for line segment collision detection
-        let prev_time = (elapsed_time - 0.075).max(0.0); // 75ms ago, matches tick interval
+        let runtime_state = ctx.db.projectile_runtime_state().projectile_id().find(&projectile.id);
+        let prev_time = runtime_state
+            .as_ref()
+            .map(|state| (state.last_sample_elapsed_secs as f64).min(elapsed_time))
+            .unwrap_or(0.0)
+            .max(0.0);
         let prev_x = projectile.start_pos_x + projectile.velocity_x * prev_time as f32;
         let prev_y = projectile.start_pos_y + projectile.velocity_y * prev_time as f32 + 0.5 * GRAVITY * final_gravity_multiplier * (prev_time as f32).powi(2);
         
@@ -1267,6 +1371,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 create_fire_patch_if_fire_arrow(ctx, &ammo_def, current_x, current_y, projectile.owner_id);
             }
             
+            queue_projectile_resolution(
+                &mut pending_resolutions,
+                &projectile,
+                current_x,
+                current_y,
+                ProjectileResolvedReason::RangeExpired,
+                ProjectileResolvedTargetKind::World,
+                0,
+            );
             missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
             projectiles_to_delete.push(projectile.id);
             continue;
@@ -1317,6 +1430,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             // Projectile hit door - stop it and create dropped item
+            queue_projectile_resolution(
+                &mut pending_resolutions,
+                &projectile,
+                collision_x,
+                collision_y,
+                ProjectileResolvedReason::Impact,
+                ProjectileResolvedTargetKind::Structure,
+                door_id,
+            );
             missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, collision_x, collision_y));
             projectiles_to_delete.push(projectile.id);
             continue;
@@ -1363,6 +1485,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             // Projectile hit fence - stop it and create dropped item
+            queue_projectile_resolution(
+                &mut pending_resolutions,
+                &projectile,
+                collision_x,
+                collision_y,
+                ProjectileResolvedReason::Impact,
+                ProjectileResolvedTargetKind::Structure,
+                fence_id,
+            );
             missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, collision_x, collision_y));
             projectiles_to_delete.push(projectile.id);
             continue;
@@ -1432,6 +1563,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             // Projectile hit wall - stop it and create dropped item
+            queue_projectile_resolution(
+                &mut pending_resolutions,
+                &projectile,
+                collision_x,
+                collision_y,
+                ProjectileResolvedReason::Impact,
+                ProjectileResolvedTargetKind::Structure,
+                wall_id,
+            );
             missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, collision_x, collision_y));
             projectiles_to_delete.push(projectile.id);
             continue;
@@ -1461,6 +1601,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                             create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, collision_x, collision_y, projectile.owner_id);
                         }
                         
+                        queue_projectile_resolution(
+                            &mut pending_resolutions,
+                            &projectile,
+                            collision_x,
+                            collision_y,
+                            ProjectileResolvedReason::Impact,
+                            ProjectileResolvedTargetKind::Structure,
+                            shelter_id.into(),
+                        );
                         missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, collision_x, collision_y));
                         projectiles_to_delete.push(projectile.id);
                         continue;
@@ -1533,6 +1682,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             // Projectile hit shelter wall - store info for dropped item creation
+            queue_projectile_resolution(
+                &mut pending_resolutions,
+                &projectile,
+                collision_x,
+                collision_y,
+                ProjectileResolvedReason::Impact,
+                ProjectileResolvedTargetKind::Structure,
+                shelter_id.into(),
+            );
             missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, collision_x, collision_y));
             projectiles_to_delete.push(projectile.id);
             continue;
@@ -1596,6 +1754,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     }
                     
                     // Trees block projectiles but don't take damage - projectile becomes dropped item
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        impact_x,
+                        impact_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::World,
+                        tree.id,
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
@@ -1643,6 +1810,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     }
                     
                     // Stones block projectiles but don't take damage - projectile becomes dropped item
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        impact_x,
+                        impact_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::World,
+                        stone.id,
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
@@ -1673,6 +1849,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     }
                     
                     // Rune stones block projectiles but don't take damage - projectile becomes dropped item
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        current_x,
+                        current_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::World,
+                        rune_stone.id,
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
@@ -1707,6 +1892,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     }
                     
                     // Basalt columns block projectiles but don't take damage - projectile becomes dropped item
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        current_x,
+                        current_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::World,
+                        basalt.id,
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
@@ -1744,6 +1938,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
                     // Coral blocks projectiles. We intentionally do not route projectile
                     // hits through coral harvesting combat; ammo should drop at impact.
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        impact_x,
+                        impact_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::World,
+                        coral.id,
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
@@ -1811,6 +2014,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 }
                 
                 // Add projectile to dropped item system (with break chance) like shelters
+                queue_projectile_resolution(
+                    &mut pending_resolutions,
+                    &projectile,
+                    current_x,
+                    current_y,
+                    ProjectileResolvedReason::Impact,
+                    ProjectileResolvedTargetKind::Deployable,
+                    campfire.id.into(),
+                );
                 missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                 projectiles_to_delete.push(projectile.id);
                 hit_deployable_this_tick = true;
@@ -1875,6 +2087,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     }
                     
                     // Add projectile to dropped item system (with break chance) like shelters
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        current_x,
+                        current_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::Deployable,
+                        storage_box.id.into(),
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_deployable_this_tick = true;
@@ -1938,6 +2159,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'stash_chunks;
@@ -2003,6 +2225,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'sleeping_bag_chunks;
@@ -2072,6 +2295,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     }
                     
                     // Add projectile to dropped item system (with break chance) like other hits
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        impact_x,
+                        impact_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::Deployable,
+                        barrel.id,
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_deployable_this_tick = true;
@@ -2139,6 +2371,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'player_corpse_chunks;
@@ -2197,6 +2430,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
                     }
                     
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        current_x,
+                        current_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::Deployable,
+                        rain_collector.id.into(),
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_deployable_this_tick = true;
@@ -2256,6 +2498,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
                     }
                     
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        current_x,
+                        current_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::Deployable,
+                        furnace.id.into(),
+                    );
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_deployable_this_tick = true;
@@ -2317,6 +2568,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'lantern_chunks;
@@ -2374,6 +2626,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'hearth_chunks;
@@ -2464,6 +2717,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'turret_chunks;
@@ -2539,6 +2793,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'barbecue_chunks;
@@ -2603,6 +2858,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         current_y,
                         &mut missed_projectiles_for_drops,
                         &mut projectiles_to_delete,
+                        &mut pending_resolutions,
                     );
                     hit_deployable_this_tick = true;
                     break 'animal_corpse_chunks;
@@ -2673,6 +2929,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     create_fire_patch_if_turret_tallow(ctx, &projectile, impact_x, impact_y);
                     
                     // Monument turret projectiles don't create drops
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        impact_x,
+                        impact_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::Animal,
+                        wild_animal.id,
+                    );
                     projectiles_to_delete.push(projectile.id);
                     hit_wild_animal_this_tick = true;
                     break 'wild_animal_chunks;
@@ -2683,6 +2948,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     Some(def) => def,
                     None => {
                         log::error!("[UpdateProjectiles] ItemDefinition not found for projectile's weapon (ID: {}). Cannot apply damage to wild animal.", projectile.item_def_id);
+                        queue_projectile_resolution(
+                            &mut pending_resolutions,
+                            &projectile,
+                            current_x,
+                            current_y,
+                            ProjectileResolvedReason::Dissipated,
+                            ProjectileResolvedTargetKind::Animal,
+                            wild_animal.id,
+                        );
                         projectiles_to_delete.push(projectile.id);
                         hit_wild_animal_this_tick = true;
                         break 'wild_animal_chunks;
@@ -2693,6 +2967,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     Some(def) => def,
                     None => {
                         log::error!("[UpdateProjectiles] ItemDefinition not found for projectile's ammunition (ID: {}). Cannot apply damage to wild animal.", projectile.ammo_def_id);
+                        queue_projectile_resolution(
+                            &mut pending_resolutions,
+                            &projectile,
+                            current_x,
+                            current_y,
+                            ProjectileResolvedReason::Dissipated,
+                            ProjectileResolvedTargetKind::Animal,
+                            wild_animal.id,
+                        );
                         projectiles_to_delete.push(projectile.id);
                         hit_wild_animal_this_tick = true;
                         break;
@@ -2746,6 +3029,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
                 // Turret projectiles (player + monument) explode on impact and don't become dropped items
                 // Add projectile to dropped item system (with break chance) like other hits
+                queue_projectile_resolution(
+                    &mut pending_resolutions,
+                    &projectile,
+                    impact_x,
+                    impact_y,
+                    ProjectileResolvedReason::Impact,
+                    ProjectileResolvedTargetKind::Animal,
+                    wild_animal.id,
+                );
                 if projectile.source_type != PROJECTILE_SOURCE_TURRET && projectile.source_type != PROJECTILE_SOURCE_MONUMENT_TURRET {
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                 }
@@ -2776,12 +3068,10 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             // - Network latency means player positions may be slightly stale
             // - 64px radius = 2x normal player radius for forgiving but fair collision
             // Player-fired projectiles also use a slightly expanded hit radius for better PvP feel.
-            const NPC_PROJECTILE_PLAYER_HIT_RADIUS: f32 = 64.0;
-            const PLAYER_PROJECTILE_PLAYER_HIT_RADIUS: f32 = 48.0;
             let player_radius = if projectile.source_type == PROJECTILE_SOURCE_NPC {
-                NPC_PROJECTILE_PLAYER_HIT_RADIUS  // Large radius for NPC projectiles - compensates for speed/latency
+                PROJECTILE_NPC_PLAYER_HIT_RADIUS
             } else {
-                PLAYER_PROJECTILE_PLAYER_HIT_RADIUS
+                PROJECTILE_PLAYER_HIT_RADIUS
             };
             let collision_detected = line_intersects_circle(prev_x, prev_y, current_x, current_y, player_to_check.position_x, player_to_check.position_y, player_radius);
             
@@ -2945,6 +3235,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     Some(def) => def,
                     None => {
                         log::error!("[UpdateProjectiles] ItemDefinition not found for projectile's weapon (ID: {}). Cannot apply damage.", projectile.item_def_id);
+                        queue_projectile_resolution(
+                            &mut pending_resolutions,
+                            &projectile,
+                            current_x,
+                            current_y,
+                            ProjectileResolvedReason::Dissipated,
+                            ProjectileResolvedTargetKind::Player,
+                            0,
+                        );
                         projectiles_to_delete.push(projectile.id); // Delete projectile if weapon def is missing
                         hit_player_this_tick = true; // Mark as handled to prevent further processing for this projectile
                         break; // Stop checking other players for this projectile
@@ -2956,6 +3255,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     Some(def) => def,
                     None => {
                         log::error!("[UpdateProjectiles] ItemDefinition not found for projectile's ammunition (ID: {}). Cannot apply damage.", projectile.ammo_def_id);
+                        queue_projectile_resolution(
+                            &mut pending_resolutions,
+                            &projectile,
+                            current_x,
+                            current_y,
+                            ProjectileResolvedReason::Dissipated,
+                            ProjectileResolvedTargetKind::Player,
+                            0,
+                        );
                         projectiles_to_delete.push(projectile.id); // Delete projectile if ammo def is missing
                         hit_player_this_tick = true; // Mark as handled to prevent further processing for this projectile
                         break; // Stop checking other players for this projectile
@@ -2967,6 +3275,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     log::info!("Projectile from {:?} blocked - Target player {:?} is in a safe zone", 
                         projectile.owner_id, player_to_check.identity);
                     // Still delete the projectile since it hit (but didn't damage)
+                    queue_projectile_resolution(
+                        &mut pending_resolutions,
+                        &projectile,
+                        current_x,
+                        current_y,
+                        ProjectileResolvedReason::Impact,
+                        ProjectileResolvedTargetKind::Player,
+                        0,
+                    );
                     projectiles_to_delete.push(projectile.id);
                     hit_player_this_tick = true;
                     break; // Stop checking other players for this projectile
@@ -3050,6 +3367,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
                 // Turret projectiles (player + monument) explode on impact and don't become dropped items
                 // Add projectile to dropped item system (with break chance) like other hits
+                queue_projectile_resolution(
+                    &mut pending_resolutions,
+                    &projectile,
+                    current_x,
+                    current_y,
+                    ProjectileResolvedReason::Impact,
+                    ProjectileResolvedTargetKind::Player,
+                    0,
+                );
                 if projectile.source_type != PROJECTILE_SOURCE_TURRET && projectile.source_type != PROJECTILE_SOURCE_MONUMENT_TURRET {
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                 }
@@ -3062,7 +3388,20 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         if hit_player_this_tick {
             continue; // Move to the next projectile if this one hit someone
         }
+
+        if let Some(mut runtime_state) = runtime_state {
+            runtime_state.last_sample_elapsed_secs = elapsed_time as f32;
+            ctx.db.projectile_runtime_state().projectile_id().update(runtime_state);
+        } else {
+            ctx.db.projectile_runtime_state().insert(ProjectileRuntimeState {
+                projectile_id: projectile.id,
+                last_sample_elapsed_secs: elapsed_time as f32,
+            });
+        }
     }
+
+    let mut created_drop_projectiles = std::collections::HashSet::new();
+    let mut broken_projectiles = std::collections::HashSet::new();
 
     // Create dropped items for missed projectiles (with different break chances)
     for (projectile_id, ammo_def_id, pos_x, pos_y) in missed_projectiles_for_drops {
@@ -3109,6 +3448,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             // Bullets always break on impact - no dropped item created
             log::debug!("[ProjectileMiss] Bullet '{}' (def_id: {}) broke on impact at ({:.1}, {:.1})", 
                 ammo_name, ammo_def_id, pos_x, pos_y);
+            broken_projectiles.insert(projectile_id);
             continue; // Skip creating dropped item - bullet is destroyed
         }
         
@@ -3152,6 +3492,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 timestamp: ctx.timestamp,
             };
             ctx.db.arrow_break_event().insert(break_event);
+            broken_projectiles.insert(projectile_id);
             
             continue; // Skip creating dropped item - projectile is destroyed
         }
@@ -3199,6 +3540,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             Ok(_) => {
                 log::info!("[ProjectileMiss] Created dropped '{}' (def_id: {}) at ({:.1}, {:.1}) for missed projectile {}", 
                          ammo_name, ammo_def_id, pos_x, pos_y, projectile_id);
+                created_drop_projectiles.insert(projectile_id);
             }
             Err(e) => {
                 log::error!("[ProjectileMiss] Failed to create dropped '{}' for missed projectile {}: {}", 
@@ -3207,8 +3549,30 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         }
     }
 
+    for resolution in &pending_resolutions {
+        let reason = if broken_projectiles.contains(&resolution.projectile_id) {
+            ProjectileResolvedReason::Broken
+        } else {
+            resolution.reason
+        };
+
+        ctx.db.projectile_resolved_event().insert(ProjectileResolvedEvent {
+            id: 0,
+            projectile_id: resolution.projectile_id,
+            client_shot_id: resolution.client_shot_id.clone(),
+            pos_x: resolution.pos_x,
+            pos_y: resolution.pos_y,
+            reason,
+            target_kind: resolution.target_kind,
+            target_id: resolution.target_id,
+            created_dropped_item: created_drop_projectiles.contains(&resolution.projectile_id),
+            timestamp: ctx.timestamp,
+        });
+    }
+
     // Delete all projectiles that need to be removed
     for projectile_id in projectiles_to_delete {
+        ctx.db.projectile_runtime_state().projectile_id().delete(&projectile_id);
         ctx.db.projectile().id().delete(&projectile_id);
     }
 
@@ -3246,7 +3610,14 @@ pub fn set_throw_aim(ctx: &ReducerContext, is_aiming: bool) -> Result<(), String
 }
 
 #[reducer]
-pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32) -> Result<(), String> {
+pub fn throw_item(
+    ctx: &ReducerContext,
+    target_world_x: f32,
+    target_world_y: f32,
+    client_player_x: f32,
+    client_player_y: f32,
+    client_shot_id: String,
+) -> Result<(), String> {
     log::info!("=== THROW_ITEM REDUCER CALLED ===");
     log::info!("Target position: ({:.2}, {:.2})", target_world_x, target_world_y);
     log::info!("Caller identity: {}", ctx.sender().to_string());
@@ -3350,6 +3721,19 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
         return Err("Could not find equipped item in inventory to throw.".to_string());
     }
 
+    let thrower_dx = client_player_x - player.position_x;
+    let thrower_dy = client_player_y - player.position_y;
+    let thrower_desync_sq = thrower_dx * thrower_dx + thrower_dy * thrower_dy;
+    const MAX_THROW_POSITION_DESYNC: f32 = 2000.0;
+    let (spawn_x, spawn_y) = if thrower_desync_sq <= MAX_THROW_POSITION_DESYNC * MAX_THROW_POSITION_DESYNC {
+        (client_player_x, client_player_y)
+    } else {
+        return Err(format!(
+            "Throw position validation failed: desync too large ({:.1} units)",
+            thrower_desync_sq.sqrt()
+        ));
+    };
+
     // Only clear the equipped item if it was completely consumed (quantity reached 0)
     // Check if the item still exists after throwing
     let item_still_exists = inventory_items_table.instance_id().find(&equipped_item_instance_id).is_some();
@@ -3371,7 +3755,7 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
 
     // --- NEW: Check shelter protection rule for thrown items ---
     // Players inside their own shelter cannot throw items outside
-    if let Some(shelter_id) = shelter::is_owner_inside_shelter(ctx, player_id, player.position_x, player.position_y) {
+    if let Some(shelter_id) = shelter::is_owner_inside_shelter(ctx, player_id, spawn_x, spawn_y) {
         // Check if target is outside the shelter
         if !shelter::is_player_inside_shelter(target_world_x, target_world_y, &ctx.db.shelter().id().find(shelter_id).unwrap()) {
             return Err("Cannot throw from inside your shelter to targets outside. Leave your shelter to attack.".to_string());
@@ -3382,12 +3766,12 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
     // --- Check if projectile path would immediately hit a wall very close to player ---
     if let Some((wall_id, collision_x, collision_y)) = crate::building::check_projectile_wall_collision(
         ctx,
-        player.position_x,
-        player.position_y,
+        spawn_x,
+        spawn_y,
         target_world_x,
         target_world_y,
     ) {
-        let collision_distance = ((collision_x - player.position_x).powi(2) + (collision_y - player.position_y).powi(2)).sqrt();
+        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
         const MIN_THROWING_DISTANCE: f32 = 80.0; // About 2 tiles
         
         if collision_distance < MIN_THROWING_DISTANCE {
@@ -3396,8 +3780,8 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
     }
     
     // --- Check if projectile path would immediately hit a closed door very close to player ---
-    if let Some((door_id, collision_x, collision_y)) = crate::door::check_door_projectile_collision(ctx, player.position_x, player.position_y, target_world_x, target_world_y) {
-        let collision_distance = ((collision_x - player.position_x).powi(2) + (collision_y - player.position_y).powi(2)).sqrt();
+    if let Some((door_id, collision_x, collision_y)) = crate::door::check_door_projectile_collision(ctx, spawn_x, spawn_y, target_world_x, target_world_y) {
+        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
         const MIN_THROWING_DISTANCE: f32 = 80.0;
         
         if collision_distance < MIN_THROWING_DISTANCE {
@@ -3406,8 +3790,8 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
     }
     
     // --- Check if projectile path would immediately hit a fence very close to player ---
-    if let Some((fence_id, collision_x, collision_y)) = crate::fence::check_projectile_fence_collision(ctx, player.position_x, player.position_y, target_world_x, target_world_y) {
-        let collision_distance = ((collision_x - player.position_x).powi(2) + (collision_y - player.position_y).powi(2)).sqrt();
+    if let Some((fence_id, collision_x, collision_y)) = crate::fence::check_projectile_fence_collision(ctx, spawn_x, spawn_y, target_world_x, target_world_y) {
+        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
         const MIN_THROWING_DISTANCE: f32 = 80.0;
         
         if collision_distance < MIN_THROWING_DISTANCE {
@@ -3418,13 +3802,13 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
     // --- Check if projectile path would immediately hit a shelter wall very close to player ---
     if let Some((shelter_id, collision_x, collision_y)) = shelter::check_projectile_shelter_collision(
         ctx,
-        player.position_x,
-        player.position_y,
+        spawn_x,
+        spawn_y,
         target_world_x,
         target_world_y,
     ) {
         // Only block the throw if the collision happens very close to the player
-        let collision_distance = ((collision_x - player.position_x).powi(2) + (collision_y - player.position_y).powi(2)).sqrt();
+        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
         const MIN_THROWING_DISTANCE: f32 = 80.0; // About 2 tiles
         
         if collision_distance < MIN_THROWING_DISTANCE {
@@ -3435,8 +3819,8 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
     }
 
     // --- Physics Calculation for Thrown Item ---
-    let delta_x = target_world_x - player.position_x;
-    let delta_y = target_world_y - player.position_y;
+    let delta_x = target_world_x - spawn_x;
+    let delta_y = target_world_y - spawn_y;
     
     // All thrown items have the same throwing speed
     const THROWING_SPEED: f32 = 800.0; // Increased from 400.0 for faster throwing
@@ -3458,23 +3842,24 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
     // Create projectile for the thrown item
     let projectile = Projectile {
         id: 0, // auto_inc
+        client_shot_id,
         owner_id: player_id,
         item_def_id: equipped_item_def_id,
         ammo_def_id: equipped_item_def_id, // For thrown items, ammo_def_id is the same as item_def_id
         source_type: PROJECTILE_SOURCE_PLAYER,
         npc_projectile_type: NPC_PROJECTILE_NONE, // Not an NPC projectile
         start_time: ctx.timestamp,
-        start_pos_x: player.position_x,
-        start_pos_y: player.position_y,
+        start_pos_x: spawn_x,
+        start_pos_y: spawn_y,
         velocity_x: final_vx,
         velocity_y: final_vy,
         max_range: 400.0, // Increased from 300.0 to match client throwing distance
     };
 
-    ctx.db.projectile().insert(projectile);
+    insert_projectile_with_runtime_state(ctx, projectile);
 
     // Emit item thrown sound
-    sound_events::emit_item_thrown_sound(ctx, player.position_x, player.position_y, player_id);
+    sound_events::emit_item_thrown_sound(ctx, spawn_x, spawn_y, player_id);
 
     // Update last attack timestamp
     let timestamp_record = PlayerLastAttackTimestamp {

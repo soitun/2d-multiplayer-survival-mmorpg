@@ -8,8 +8,9 @@ use crate::{Player, player as PlayerTableTrait};
 use crate::environment::calculate_chunk_index;
 use crate::player_inventory::{get_player_item, find_first_empty_player_slot, move_item_to_inventory, move_item_to_hotbar};
 use crate::dropped_item::create_dropped_item_entity_with_data;
-use crate::projectile::{Projectile, PROJECTILE_SOURCE_TURRET, PROJECTILE_SOURCE_MONUMENT_TURRET, NPC_PROJECTILE_NONE};
+use crate::projectile::{Projectile, ProjectileRuntimeState, PROJECTILE_SOURCE_TURRET, PROJECTILE_SOURCE_MONUMENT_TURRET, NPC_PROJECTILE_NONE};
 use crate::projectile::projectile as ProjectileTableTrait;
+use crate::projectile::projectile_runtime_state as ProjectileRuntimeStateTableTrait;
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
 use crate::sound_events::emit_shoot_turret_sound;
@@ -738,6 +739,7 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
                     // Use PROJECTILE_SOURCE_MONUMENT_TURRET so damage system knows to one-shot
                     let projectile = Projectile {
                         id: 0,
+                        client_shot_id: String::new(),
                         owner_id: turret.placed_by,
                         item_def_id: 0,
                         ammo_def_id: 0,
@@ -751,7 +753,11 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
                         max_range: MONUMENT_TURRET_RANGE * 1.5,
                     };
                     
-                    ctx.db.projectile().insert(projectile);
+                    let inserted_projectile = ctx.db.projectile().insert(projectile);
+                    ctx.db.projectile_runtime_state().insert(ProjectileRuntimeState {
+                        projectile_id: inserted_projectile.id,
+                        last_sample_elapsed_secs: 0.0,
+                    });
                     turret.last_fire_time = Some(current_time);
                     emit_shoot_turret_sound(ctx, turret.pos_x, turret.pos_y);
                     log::info!("Monument turret {} fired at target at ({:.1}, {:.1})", turret.id, target_x, target_y);
@@ -838,6 +844,7 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
                         // Create projectile
                         let projectile = Projectile {
                             id: 0, // auto_inc
+                            client_shot_id: String::new(),
                             owner_id: turret.placed_by,
                             item_def_id: tallow_def_id, // Tallow is both item and ammo
                             ammo_def_id: tallow_def_id,
@@ -851,7 +858,11 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
                             max_range: TURRET_RANGE * 1.5, // Slightly longer than detection range
                         };
                         
-                        ctx.db.projectile().insert(projectile);
+                        let inserted_projectile = ctx.db.projectile().insert(projectile);
+                        ctx.db.projectile_runtime_state().insert(ProjectileRuntimeState {
+                            projectile_id: inserted_projectile.id,
+                            last_sample_elapsed_secs: 0.0,
+                        });
                         
                         // Consume 1 Tallow
                         if ammo_item.quantity > 1 {

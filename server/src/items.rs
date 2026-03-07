@@ -263,7 +263,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             weapon_range: 520.0,       // Close-mid range - rewards aggressive positioning
             projectile_speed: 800.0,   // Faster arrows - less frustrating to lead
             accuracy: 0.86,            // 86% accuracy - rewards getting in range
-            reload_time_secs: 0.85,    // Fast follow-up shots - aggressive playstyle
+            reload_time_secs: 0.80,    // Slightly faster follow-up shots - keeps the bow snappy
             magazine_capacity: 0,      // Single-shot (arrows loaded one at a time)
             is_automatic: false,       // Semi-auto - must click for each shot
             magazine_reload_time_secs: 0.0, // Instant nock - no reload animation
