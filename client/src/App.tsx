@@ -935,47 +935,15 @@ function AppContent() {
             connected: Boolean(spacetimeConnected),
             loading: Boolean(authLoading || spacetimeLoading),
         });
-    }, [spacetimeConnected, authLoading, spacetimeLoading]);
+        runtimeEngine.setConnection(connection, dbIdentity ? dbIdentity.toHexString() : null);
+    }, [spacetimeConnected, authLoading, spacetimeLoading, connection, dbIdentity]);
 
     useEffect(() => {
-        runtimeEngine.updateSnapshot((current) => ({
-            ...current,
-            world: {
-                ...current.world,
-                predictedPosition: predictedPosition ?? null,
-                viewport: currentViewport,
-                tables: {
-                    ...current.world.tables,
-                    players,
-                    trees,
-                    stones,
-                    campfires,
-                    furnaces,
-                    droppedItems,
-                    inventoryItems,
-                    itemDefinitions,
-                    worldState,
-                    activeEquipments,
-                    projectiles,
-                    chunkWeather,
-                },
-            },
-        }));
+        runtimeEngine.setPredictedPosition(predictedPosition ?? null);
+        runtimeEngine.setWorldViewport(currentViewport);
     }, [
         predictedPosition,
         currentViewport,
-        players,
-        trees,
-        stones,
-        campfires,
-        furnaces,
-        droppedItems,
-        inventoryItems,
-        itemDefinitions,
-        worldState,
-        activeEquipments,
-        projectiles,
-        chunkWeather,
     ]);
 
 

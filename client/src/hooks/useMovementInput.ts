@@ -21,6 +21,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Player } from '../generated/types';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
+import { runtimeEngine } from '../engine/runtimeEngine';
+import { useEngineInputState, useEngineWorldRuntimeState } from '../engine/react/useEngineStoreState';
 
 // Convert player facing direction string to normalized movement vector
 const getDirectionVector = (facingDirection: string): { x: number; y: number } => {
@@ -65,13 +67,13 @@ export const useMovementInput = ({
   });
   
   // React state is only for components that need to re-render on input changes (rare)
-  const [inputState, setInputState] = useState<MovementInputState>({
+  const [inputState, setInputState] = useEngineWorldRuntimeState<MovementInputState>('movementInputState', () => ({
     direction: { x: 0, y: 0 },
     sprinting: false
-  });
+  }));
 
   // Auto-walk state
-  const [isAutoWalking, setIsAutoWalking] = useState(false);
+  const [isAutoWalking, setIsAutoWalking] = useEngineInputState<boolean>('isAutoWalking', () => false);
   const autoWalkDirection = useRef<{ x: number; y: number } | null>(null);
   const autoWalkSprinting = useRef<boolean>(false);
 
@@ -81,6 +83,12 @@ export const useMovementInput = ({
   const lastComputedStateRef = useRef<MovementInputState>({ direction: { x: 0, y: 0 }, sprinting: false });
 
   const { jump } = usePlayerActions();
+
+  useEffect(() => {
+    inputStateRef.current = inputState;
+    runtimeEngine.updateInputState('movementDirection', inputState.direction);
+    runtimeEngine.updateInputState('sprinting', inputState.sprinting);
+  }, [inputState]);
 
   // Key processing with auto-walk support
   const processKeys = useCallback(() => {

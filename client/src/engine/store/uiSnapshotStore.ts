@@ -5,15 +5,44 @@ type Listener = () => void;
 const createInitialSnapshot = (): EngineRuntimeSnapshot => ({
   tick: 0,
   lastFrameInfo: null,
+  connection: {
+    connection: null,
+    identityHex: null,
+  },
   world: {
     predictedPosition: null,
     viewport: null,
     tables: {},
+    chunkDataMap: null,
+    runtimeState: {},
+    derived: {},
+  },
+  frame: {
+    renderAlpha: 1,
+    visibleEntities: {},
+    remotePlayerPositions: new Map(),
+    canvas: {
+      maskCanvas: null,
+      overlayRgba: 'transparent',
+    },
+  },
+  input: {
+    movementDirection: { x: 0, y: 0 },
+    sprinting: false,
+    isAutoWalking: false,
+    isAutoAttacking: false,
+    isActivelyHolding: false,
+    isCrouching: false,
+    currentJumpOffsetY: 0,
+    interactionProgress: null,
+    optimisticProjectiles: new Map(),
+    processInputsAndActions: null,
   },
   ui: {
     connected: false,
     loading: true,
     uiTables: {},
+    state: {},
   },
 });
 

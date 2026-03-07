@@ -20,7 +20,7 @@
  * - Progressive loading: Chunk subscriptions spread across frames to avoid lag spikes
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import * as SpacetimeDB from '../generated/types';
 import {
@@ -35,6 +35,7 @@ import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUti
 import { triggerAnimalCorpseDestructionEffect } from '../utils/renderers/animalCorpseRenderingUtils';
 import { triggerBarrelDestructionEffect } from '../utils/renderers/barrelRenderingUtils';
 import { runtimeEngine } from '../engine/runtimeEngine';
+import { useEngineWorldTableState } from '../engine/react/useEngineStoreState';
 import { recordProjectileDebugEvent } from '../utils/projectileDebug';
 import { subscribeNonSpatialQueries } from '../engine/adapters/spacetime/nonSpatialSubscriptions';
 import { subscribeChunkBatches } from '../engine/adapters/spacetime/spatialSubscriptions';
@@ -207,116 +208,110 @@ export const useSpacetimeTables = ({
 
     // ─── Entity State (Map<id, entity>) ─────────────────────────────────────
     // Each table is stored as a Map for O(1) lookup. Keys are string IDs (bigint.toString()).
-    const [players, setPlayers] = useState<Map<string, SpacetimeDB.Player>>(() => new Map());
-    const [trees, setTrees] = useState<Map<string, SpacetimeDB.Tree>>(() => new Map());
-    const [stones, setStones] = useState<Map<string, SpacetimeDB.Stone>>(() => new Map());
-    const [runeStones, setRuneStones] = useState<Map<string, SpacetimeDB.RuneStone>>(() => new Map());
-    const [cairns, setCairns] = useState<Map<string, SpacetimeDB.Cairn>>(() => new Map());
-    const [playerDiscoveredCairns, setPlayerDiscoveredCairns] = useState<Map<string, SpacetimeDB.PlayerDiscoveredCairn>>(() => new Map());
-    const [campfires, setCampfires] = useState<Map<string, SpacetimeDB.Campfire>>(() => new Map());
-    const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map());
-    const [barbecues, setBarbecues] = useState<Map<string, SpacetimeDB.Barbecue>>(() => new Map());
-    const [lanterns, setLanterns] = useState<Map<string, SpacetimeDB.Lantern>>(() => new Map());
-    const [turrets, setTurrets] = useState<Map<string, SpacetimeDB.Turret>>(() => new Map());
-    const [homesteadHearths, setHomesteadHearths] = useState<Map<string, SpacetimeDB.HomesteadHearth>>(() => new Map());
-    const [brothPots, setBrothPots] = useState<Map<string, SpacetimeDB.BrothPot>>(() => new Map());
-    const [harvestableResources, setHarvestableResources] = useState<Map<string, SpacetimeDB.HarvestableResource>>(() => new Map());
-    const [plantedSeeds, setPlantedSeeds] = useState<Map<string, SpacetimeDB.PlantedSeed>>(() => new Map());
-    const [itemDefinitions, setItemDefinitions] = useState<Map<string, SpacetimeDB.ItemDefinition>>(() => new Map());
-    const [inventoryItems, setInventoryItems] = useState<Map<string, SpacetimeDB.InventoryItem>>(() => new Map());
-    const [worldState, setWorldState] = useState<SpacetimeDB.WorldState | null>(null);
-    const [activeEquipments, setActiveEquipments] = useState<Map<string, SpacetimeDB.ActiveEquipment>>(() => new Map());
-    const [droppedItems, setDroppedItems] = useState<Map<string, SpacetimeDB.DroppedItem>>(() => new Map());
-    const [woodenStorageBoxes, setWoodenStorageBoxes] = useState<Map<string, SpacetimeDB.WoodenStorageBox>>(() => new Map());
-    const [recipes, setRecipes] = useState<Map<string, SpacetimeDB.Recipe>>(() => new Map());
-    const [craftingQueueItems, setCraftingQueueItems] = useState<Map<string, SpacetimeDB.CraftingQueueItem>>(() => new Map());
-    const [messages, setMessages] = useState<Map<string, SpacetimeDB.Message>>(() => new Map());
-    const [localPlayerRegistered, setLocalPlayerRegistered] = useState<boolean>(false);
-    const [playerPins, setPlayerPins] = useState<Map<string, SpacetimeDB.PlayerPin>>(() => new Map());
-    const [activeConnections, setActiveConnections] = useState<Map<string, SpacetimeDB.ActiveConnection>>(() => new Map());
-    const [sleepingBags, setSleepingBags] = useState<Map<string, SpacetimeDB.SleepingBag>>(() => new Map());
-    const [playerCorpses, setPlayerCorpses] = useState<Map<string, SpacetimeDB.PlayerCorpse>>(() => new Map());
-    const [stashes, setStashes] = useState<Map<string, SpacetimeDB.Stash>>(() => new Map());
-    const [rainCollectors, setRainCollectors] = useState<Map<string, SpacetimeDB.RainCollector>>(() => new Map());
-    const [waterPatches, setWaterPatches] = useState<Map<string, SpacetimeDB.WaterPatch>>(() => new Map());
-    const [fertilizerPatches, setFertilizerPatches] = useState<Map<string, SpacetimeDB.FertilizerPatch>>(() => new Map());
-    const [firePatches, setFirePatches] = useState<Map<string, SpacetimeDB.FirePatch>>(() => new Map());
-    const [placedExplosives, setPlacedExplosives] = useState<Map<string, SpacetimeDB.PlacedExplosive>>(() => new Map());
-    const [hotSprings, setHotSprings] = useState<Map<string, any>>(() => new Map()); // HotSpring - placeholder (hot springs are tile-based, not entities)
-    const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
-    const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
-    const [droneEvents, setDroneEvents] = useState<Map<string, SpacetimeDB.DroneEvent>>(() => new Map());
-    const [grass, setGrass] = useState<Map<string, SpacetimeDB.Grass>>(() => new Map()); // Split tables: static geometry
-    const [grassState, setGrassState] = useState<Map<string, SpacetimeDB.GrassState>>(() => new Map()); // Split tables: dynamic state (is_alive, respawn)
-    const [knockedOutStatus, setKnockedOutStatus] = useState<Map<string, SpacetimeDB.KnockedOutStatus>>(() => new Map());
-    const [rangedWeaponStats, setRangedWeaponStats] = useState<Map<string, SpacetimeDBRangedWeaponStats>>(() => new Map());
-    const [projectiles, setProjectiles] = useState<Map<string, SpacetimeDBProjectile>>(() => new Map());
-    const [deathMarkers, setDeathMarkers] = useState<Map<string, SpacetimeDB.DeathMarker>>(() => new Map());
-    const [shelters, setShelters] = useState<Map<string, SpacetimeDB.Shelter>>(() => new Map());
-    const [minimapCache, setMinimapCache] = useState<SpacetimeDB.MinimapCache | null>(null);
-    const [playerDodgeRollStates, setPlayerDodgeRollStates] = useState<Map<string, SpacetimeDB.PlayerDodgeRollState>>(() => new Map());
-    const [fishingSessions, setFishingSessions] = useState<Map<string, SpacetimeDB.FishingSession>>(() => new Map());
-    const [soundEvents, setSoundEvents] = useState<Map<string, SpacetimeDB.SoundEvent>>(() => new Map());
-    const [continuousSounds, setContinuousSounds] = useState<Map<string, SpacetimeDB.ContinuousSound>>(() => new Map());
-    const [playerDrinkingCooldowns, setPlayerDrinkingCooldowns] = useState<Map<string, SpacetimeDB.PlayerDrinkingCooldown>>(() => new Map());
-    const [wildAnimals, setWildAnimals] = useState<Map<string, SpacetimeDB.WildAnimal>>(() => new Map());
+    const [players, setPlayers] = useEngineWorldTableState<Map<string, SpacetimeDB.Player>>('players', () => new Map());
+    const [trees, setTrees] = useEngineWorldTableState<Map<string, SpacetimeDB.Tree>>('trees', () => new Map());
+    const [stones, setStones] = useEngineWorldTableState<Map<string, SpacetimeDB.Stone>>('stones', () => new Map());
+    const [runeStones, setRuneStones] = useEngineWorldTableState<Map<string, SpacetimeDB.RuneStone>>('runeStones', () => new Map());
+    const [cairns, setCairns] = useEngineWorldTableState<Map<string, SpacetimeDB.Cairn>>('cairns', () => new Map());
+    const [playerDiscoveredCairns, setPlayerDiscoveredCairns] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerDiscoveredCairn>>('playerDiscoveredCairns', () => new Map());
+    const [campfires, setCampfires] = useEngineWorldTableState<Map<string, SpacetimeDB.Campfire>>('campfires', () => new Map());
+    const [furnaces, setFurnaces] = useEngineWorldTableState<Map<string, SpacetimeDB.Furnace>>('furnaces', () => new Map());
+    const [barbecues, setBarbecues] = useEngineWorldTableState<Map<string, SpacetimeDB.Barbecue>>('barbecues', () => new Map());
+    const [lanterns, setLanterns] = useEngineWorldTableState<Map<string, SpacetimeDB.Lantern>>('lanterns', () => new Map());
+    const [turrets, setTurrets] = useEngineWorldTableState<Map<string, SpacetimeDB.Turret>>('turrets', () => new Map());
+    const [homesteadHearths, setHomesteadHearths] = useEngineWorldTableState<Map<string, SpacetimeDB.HomesteadHearth>>('homesteadHearths', () => new Map());
+    const [brothPots, setBrothPots] = useEngineWorldTableState<Map<string, SpacetimeDB.BrothPot>>('brothPots', () => new Map());
+    const [harvestableResources, setHarvestableResources] = useEngineWorldTableState<Map<string, SpacetimeDB.HarvestableResource>>('harvestableResources', () => new Map());
+    const [plantedSeeds, setPlantedSeeds] = useEngineWorldTableState<Map<string, SpacetimeDB.PlantedSeed>>('plantedSeeds', () => new Map());
+    const [itemDefinitions, setItemDefinitions] = useEngineWorldTableState<Map<string, SpacetimeDB.ItemDefinition>>('itemDefinitions', () => new Map());
+    const [inventoryItems, setInventoryItems] = useEngineWorldTableState<Map<string, SpacetimeDB.InventoryItem>>('inventoryItems', () => new Map());
+    const [worldState, setWorldState] = useEngineWorldTableState<SpacetimeDB.WorldState | null>('worldState', () => null);
+    const [activeEquipments, setActiveEquipments] = useEngineWorldTableState<Map<string, SpacetimeDB.ActiveEquipment>>('activeEquipments', () => new Map());
+    const [droppedItems, setDroppedItems] = useEngineWorldTableState<Map<string, SpacetimeDB.DroppedItem>>('droppedItems', () => new Map());
+    const [woodenStorageBoxes, setWoodenStorageBoxes] = useEngineWorldTableState<Map<string, SpacetimeDB.WoodenStorageBox>>('woodenStorageBoxes', () => new Map());
+    const [recipes, setRecipes] = useEngineWorldTableState<Map<string, SpacetimeDB.Recipe>>('recipes', () => new Map());
+    const [craftingQueueItems, setCraftingQueueItems] = useEngineWorldTableState<Map<string, SpacetimeDB.CraftingQueueItem>>('craftingQueueItems', () => new Map());
+    const [messages, setMessages] = useEngineWorldTableState<Map<string, SpacetimeDB.Message>>('messages', () => new Map());
+    const [localPlayerRegistered, setLocalPlayerRegistered] = useEngineWorldTableState<boolean>('localPlayerRegistered', () => false);
+    const [playerPins, setPlayerPins] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerPin>>('playerPins', () => new Map());
+    const [activeConnections, setActiveConnections] = useEngineWorldTableState<Map<string, SpacetimeDB.ActiveConnection>>('activeConnections', () => new Map());
+    const [sleepingBags, setSleepingBags] = useEngineWorldTableState<Map<string, SpacetimeDB.SleepingBag>>('sleepingBags', () => new Map());
+    const [playerCorpses, setPlayerCorpses] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerCorpse>>('playerCorpses', () => new Map());
+    const [stashes, setStashes] = useEngineWorldTableState<Map<string, SpacetimeDB.Stash>>('stashes', () => new Map());
+    const [rainCollectors, setRainCollectors] = useEngineWorldTableState<Map<string, SpacetimeDB.RainCollector>>('rainCollectors', () => new Map());
+    const [waterPatches, setWaterPatches] = useEngineWorldTableState<Map<string, SpacetimeDB.WaterPatch>>('waterPatches', () => new Map());
+    const [fertilizerPatches, setFertilizerPatches] = useEngineWorldTableState<Map<string, SpacetimeDB.FertilizerPatch>>('fertilizerPatches', () => new Map());
+    const [firePatches, setFirePatches] = useEngineWorldTableState<Map<string, SpacetimeDB.FirePatch>>('firePatches', () => new Map());
+    const [placedExplosives, setPlacedExplosives] = useEngineWorldTableState<Map<string, SpacetimeDB.PlacedExplosive>>('placedExplosives', () => new Map());
+    const [hotSprings, setHotSprings] = useEngineWorldTableState<Map<string, any>>('hotSprings', () => new Map());
+    const [activeConsumableEffects, setActiveConsumableEffects] = useEngineWorldTableState<Map<string, SpacetimeDB.ActiveConsumableEffect>>('activeConsumableEffects', () => new Map());
+    const [clouds, setClouds] = useEngineWorldTableState<Map<string, SpacetimeDB.Cloud>>('clouds', () => new Map());
+    const [droneEvents, setDroneEvents] = useEngineWorldTableState<Map<string, SpacetimeDB.DroneEvent>>('droneEvents', () => new Map());
+    const [grass, setGrass] = useEngineWorldTableState<Map<string, SpacetimeDB.Grass>>('grass', () => new Map());
+    const [grassState, setGrassState] = useEngineWorldTableState<Map<string, SpacetimeDB.GrassState>>('grassState', () => new Map());
+    const [knockedOutStatus, setKnockedOutStatus] = useEngineWorldTableState<Map<string, SpacetimeDB.KnockedOutStatus>>('knockedOutStatus', () => new Map());
+    const [rangedWeaponStats, setRangedWeaponStats] = useEngineWorldTableState<Map<string, SpacetimeDBRangedWeaponStats>>('rangedWeaponStats', () => new Map());
+    const [projectiles, setProjectiles] = useEngineWorldTableState<Map<string, SpacetimeDBProjectile>>('projectiles', () => new Map());
+    const [deathMarkers, setDeathMarkers] = useEngineWorldTableState<Map<string, SpacetimeDB.DeathMarker>>('deathMarkers', () => new Map());
+    const [shelters, setShelters] = useEngineWorldTableState<Map<string, SpacetimeDB.Shelter>>('shelters', () => new Map());
+    const [minimapCache, setMinimapCache] = useEngineWorldTableState<SpacetimeDB.MinimapCache | null>('minimapCache', () => null);
+    const [playerDodgeRollStates, setPlayerDodgeRollStates] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerDodgeRollState>>('playerDodgeRollStates', () => new Map());
+    const [fishingSessions, setFishingSessions] = useEngineWorldTableState<Map<string, SpacetimeDB.FishingSession>>('fishingSessions', () => new Map());
+    const [soundEvents, setSoundEvents] = useEngineWorldTableState<Map<string, SpacetimeDB.SoundEvent>>('soundEvents', () => new Map());
+    const [continuousSounds, setContinuousSounds] = useEngineWorldTableState<Map<string, SpacetimeDB.ContinuousSound>>('continuousSounds', () => new Map());
+    const [playerDrinkingCooldowns, setPlayerDrinkingCooldowns] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerDrinkingCooldown>>('playerDrinkingCooldowns', () => new Map());
+    const [wildAnimals, setWildAnimals] = useEngineWorldTableState<Map<string, SpacetimeDB.WildAnimal>>('wildAnimals', () => new Map());
     // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal table with is_hostile_npc = true
     // Track hostile death events for client-side particle effects (no server subscription needed)
-    const [hostileDeathEvents, setHostileDeathEvents] = useState<Array<{ id: string, x: number, y: number, species: string, timestamp: number }>>([]);
-    const [animalCorpses, setAnimalCorpses] = useState<Map<string, SpacetimeDB.AnimalCorpse>>(() => new Map());
-    const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map());
-    const [roadLampposts, setRoadLampposts] = useState<Map<string, SpacetimeDB.RoadLamppost>>(() => new Map());
-    const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map());
-    const [fumaroles, setFumaroles] = useState<Map<string, SpacetimeDB.Fumarole>>(() => new Map());
-    const [basaltColumns, setBasaltColumns] = useState<Map<string, SpacetimeDB.BasaltColumn>>(() => new Map());
-    const [livingCorals, setLivingCorals] = useState<Map<string, SpacetimeDB.LivingCoral>>(() => new Map());
-    const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map());
-    const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map());
-    const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map());
-    const [fences, setFences] = useState<Map<string, SpacetimeDB.Fence>>(() => new Map());
-    const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map());
-    const [alkStations, setAlkStations] = useState<Map<string, SpacetimeDB.AlkStation>>(() => new Map());
-    const [alkContracts, setAlkContracts] = useState<Map<string, SpacetimeDB.AlkContract>>(() => new Map());
-    const [alkPlayerContracts, setAlkPlayerContracts] = useState<Map<string, SpacetimeDB.AlkPlayerContract>>(() => new Map());
-    const [alkState, setAlkState] = useState<SpacetimeDB.AlkState | null>(null);
-    const [playerShardBalance, setPlayerShardBalance] = useState<Map<string, SpacetimeDB.PlayerShardBalance>>(() => new Map());
-    const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map());
-    const [monumentParts, setMonumentParts] = useState<Map<string, any>>(() => new Map());
-    const [largeQuarries, setLargeQuarries] = useState<Map<string, any>>(() => new Map());
-    // Matronage system state
-    const [matronages, setMatronages] = useState<Map<string, any>>(() => new Map());
-    const [matronageMembers, setMatronageMembers] = useState<Map<string, any>>(() => new Map());
-    const [matronageInvitations, setMatronageInvitations] = useState<Map<string, any>>(() => new Map());
-    const [matronageOwedShards, setMatronageOwedShards] = useState<Map<string, any>>(() => new Map());
-    // Player progression system state
-    const [playerStats, setPlayerStats] = useState<Map<string, SpacetimeDB.PlayerStats>>(() => new Map());
-    const [achievementDefinitions, setAchievementDefinitions] = useState<Map<string, SpacetimeDB.AchievementDefinition>>(() => new Map());
-    const [playerAchievements, setPlayerAchievements] = useState<Map<string, SpacetimeDB.PlayerAchievement>>(() => new Map());
-    const [achievementUnlockNotifications, setAchievementUnlockNotifications] = useState<Map<string, SpacetimeDB.AchievementUnlockNotification>>(() => new Map());
-    const [levelUpNotifications, setLevelUpNotifications] = useState<Map<string, SpacetimeDB.LevelUpNotification>>(() => new Map());
-    const [dailyLoginNotifications, setDailyLoginNotifications] = useState<Map<string, SpacetimeDB.DailyLoginNotification>>(() => new Map());
-    const [progressNotifications, setProgressNotifications] = useState<Map<string, SpacetimeDB.ProgressNotification>>(() => new Map());
-    const [comparativeStatNotifications, setComparativeStatNotifications] = useState<Map<string, SpacetimeDB.ComparativeStatNotification>>(() => new Map());
-    const [leaderboardEntries, setLeaderboardEntries] = useState<Map<string, SpacetimeDB.LeaderboardEntry>>(() => new Map());
-    const [dailyLoginRewards, setDailyLoginRewards] = useState<Map<string, SpacetimeDB.DailyLoginReward>>(() => new Map());
-    const [plantConfigDefinitions, setPlantConfigDefinitions] = useState<Map<string, SpacetimeDB.PlantConfigDefinition>>(() => new Map());
-    const [discoveredPlants, setDiscoveredPlants] = useState<Map<string, SpacetimeDB.PlayerDiscoveredPlant>>(() => new Map());
-
-    // Quest system state
-    const [tutorialQuestDefinitions, setTutorialQuestDefinitions] = useState<Map<string, SpacetimeDB.TutorialQuestDefinition>>(() => new Map());
-    const [dailyQuestDefinitions, setDailyQuestDefinitions] = useState<Map<string, SpacetimeDB.DailyQuestDefinition>>(() => new Map());
-    const [playerTutorialProgress, setPlayerTutorialProgress] = useState<Map<string, SpacetimeDB.PlayerTutorialProgress>>(() => new Map());
-    const [playerDailyQuests, setPlayerDailyQuests] = useState<Map<string, SpacetimeDB.PlayerDailyQuest>>(() => new Map());
-    const [questCompletionNotifications, setQuestCompletionNotifications] = useState<Map<string, SpacetimeDB.QuestCompletionNotification>>(() => new Map());
-    const [questProgressNotifications, setQuestProgressNotifications] = useState<Map<string, SpacetimeDB.QuestProgressNotification>>(() => new Map());
-    const [sovaQuestMessages, setSovaQuestMessages] = useState<Map<string, SpacetimeDB.SovaQuestMessage>>(() => new Map());
-    const [beaconDropEvents, setBeaconDropEvents] = useState<Map<string, SpacetimeDB.BeaconDropEvent>>(() => new Map());
-    // Animal breeding system state
-    const [caribouBreedingData, setCaribouBreedingData] = useState<Map<string, SpacetimeDB.CaribouBreedingData>>(() => new Map());
-    const [walrusBreedingData, setWalrusBreedingData] = useState<Map<string, SpacetimeDB.WalrusBreedingData>>(() => new Map());
-    // Animal rut state (breeding season) - global single-row tables
-    const [caribouRutState, setCaribouRutState] = useState<SpacetimeDB.CaribouRutState | null>(null);
-    const [walrusRutState, setWalrusRutState] = useState<SpacetimeDB.WalrusRutState | null>(null);
+    const [hostileDeathEvents, setHostileDeathEvents] = useEngineWorldTableState<Array<{ id: string, x: number, y: number, species: string, timestamp: number }>>('hostileDeathEvents', () => []);
+    const [animalCorpses, setAnimalCorpses] = useEngineWorldTableState<Map<string, SpacetimeDB.AnimalCorpse>>('animalCorpses', () => new Map());
+    const [barrels, setBarrels] = useEngineWorldTableState<Map<string, SpacetimeDB.Barrel>>('barrels', () => new Map());
+    const [roadLampposts, setRoadLampposts] = useEngineWorldTableState<Map<string, SpacetimeDB.RoadLamppost>>('roadLampposts', () => new Map());
+    const [seaStacks, setSeaStacks] = useEngineWorldTableState<Map<string, SpacetimeDB.SeaStack>>('seaStacks', () => new Map());
+    const [fumaroles, setFumaroles] = useEngineWorldTableState<Map<string, SpacetimeDB.Fumarole>>('fumaroles', () => new Map());
+    const [basaltColumns, setBasaltColumns] = useEngineWorldTableState<Map<string, SpacetimeDB.BasaltColumn>>('basaltColumns', () => new Map());
+    const [livingCorals, setLivingCorals] = useEngineWorldTableState<Map<string, SpacetimeDB.LivingCoral>>('livingCorals', () => new Map());
+    const [foundationCells, setFoundationCells] = useEngineWorldTableState<Map<string, SpacetimeDB.FoundationCell>>('foundationCells', () => new Map());
+    const [wallCells, setWallCells] = useEngineWorldTableState<Map<string, SpacetimeDB.WallCell>>('wallCells', () => new Map());
+    const [doors, setDoors] = useEngineWorldTableState<Map<string, SpacetimeDB.Door>>('doors', () => new Map());
+    const [fences, setFences] = useEngineWorldTableState<Map<string, SpacetimeDB.Fence>>('fences', () => new Map());
+    const [chunkWeather, setChunkWeather] = useEngineWorldTableState<Map<string, any>>('chunkWeather', () => new Map());
+    const [alkStations, setAlkStations] = useEngineWorldTableState<Map<string, SpacetimeDB.AlkStation>>('alkStations', () => new Map());
+    const [alkContracts, setAlkContracts] = useEngineWorldTableState<Map<string, SpacetimeDB.AlkContract>>('alkContracts', () => new Map());
+    const [alkPlayerContracts, setAlkPlayerContracts] = useEngineWorldTableState<Map<string, SpacetimeDB.AlkPlayerContract>>('alkPlayerContracts', () => new Map());
+    const [alkState, setAlkState] = useEngineWorldTableState<SpacetimeDB.AlkState | null>('alkState', () => null);
+    const [playerShardBalance, setPlayerShardBalance] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerShardBalance>>('playerShardBalance', () => new Map());
+    const [memoryGridProgress, setMemoryGridProgress] = useEngineWorldTableState<Map<string, SpacetimeDB.MemoryGridProgress>>('memoryGridProgress', () => new Map());
+    const [monumentParts, setMonumentParts] = useEngineWorldTableState<Map<string, any>>('monumentParts', () => new Map());
+    const [largeQuarries, setLargeQuarries] = useEngineWorldTableState<Map<string, any>>('largeQuarries', () => new Map());
+    const [matronages, setMatronages] = useEngineWorldTableState<Map<string, any>>('matronages', () => new Map());
+    const [matronageMembers, setMatronageMembers] = useEngineWorldTableState<Map<string, any>>('matronageMembers', () => new Map());
+    const [matronageInvitations, setMatronageInvitations] = useEngineWorldTableState<Map<string, any>>('matronageInvitations', () => new Map());
+    const [matronageOwedShards, setMatronageOwedShards] = useEngineWorldTableState<Map<string, any>>('matronageOwedShards', () => new Map());
+    const [playerStats, setPlayerStats] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerStats>>('playerStats', () => new Map());
+    const [achievementDefinitions, setAchievementDefinitions] = useEngineWorldTableState<Map<string, SpacetimeDB.AchievementDefinition>>('achievementDefinitions', () => new Map());
+    const [playerAchievements, setPlayerAchievements] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerAchievement>>('playerAchievements', () => new Map());
+    const [achievementUnlockNotifications, setAchievementUnlockNotifications] = useEngineWorldTableState<Map<string, SpacetimeDB.AchievementUnlockNotification>>('achievementUnlockNotifications', () => new Map());
+    const [levelUpNotifications, setLevelUpNotifications] = useEngineWorldTableState<Map<string, SpacetimeDB.LevelUpNotification>>('levelUpNotifications', () => new Map());
+    const [dailyLoginNotifications, setDailyLoginNotifications] = useEngineWorldTableState<Map<string, SpacetimeDB.DailyLoginNotification>>('dailyLoginNotifications', () => new Map());
+    const [progressNotifications, setProgressNotifications] = useEngineWorldTableState<Map<string, SpacetimeDB.ProgressNotification>>('progressNotifications', () => new Map());
+    const [comparativeStatNotifications, setComparativeStatNotifications] = useEngineWorldTableState<Map<string, SpacetimeDB.ComparativeStatNotification>>('comparativeStatNotifications', () => new Map());
+    const [leaderboardEntries, setLeaderboardEntries] = useEngineWorldTableState<Map<string, SpacetimeDB.LeaderboardEntry>>('leaderboardEntries', () => new Map());
+    const [dailyLoginRewards, setDailyLoginRewards] = useEngineWorldTableState<Map<string, SpacetimeDB.DailyLoginReward>>('dailyLoginRewards', () => new Map());
+    const [plantConfigDefinitions, setPlantConfigDefinitions] = useEngineWorldTableState<Map<string, SpacetimeDB.PlantConfigDefinition>>('plantConfigDefinitions', () => new Map());
+    const [discoveredPlants, setDiscoveredPlants] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerDiscoveredPlant>>('discoveredPlants', () => new Map());
+    const [tutorialQuestDefinitions, setTutorialQuestDefinitions] = useEngineWorldTableState<Map<string, SpacetimeDB.TutorialQuestDefinition>>('tutorialQuestDefinitions', () => new Map());
+    const [dailyQuestDefinitions, setDailyQuestDefinitions] = useEngineWorldTableState<Map<string, SpacetimeDB.DailyQuestDefinition>>('dailyQuestDefinitions', () => new Map());
+    const [playerTutorialProgress, setPlayerTutorialProgress] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerTutorialProgress>>('playerTutorialProgress', () => new Map());
+    const [playerDailyQuests, setPlayerDailyQuests] = useEngineWorldTableState<Map<string, SpacetimeDB.PlayerDailyQuest>>('playerDailyQuests', () => new Map());
+    const [questCompletionNotifications, setQuestCompletionNotifications] = useEngineWorldTableState<Map<string, SpacetimeDB.QuestCompletionNotification>>('questCompletionNotifications', () => new Map());
+    const [questProgressNotifications, setQuestProgressNotifications] = useEngineWorldTableState<Map<string, SpacetimeDB.QuestProgressNotification>>('questProgressNotifications', () => new Map());
+    const [sovaQuestMessages, setSovaQuestMessages] = useEngineWorldTableState<Map<string, SpacetimeDB.SovaQuestMessage>>('sovaQuestMessages', () => new Map());
+    const [beaconDropEvents, setBeaconDropEvents] = useEngineWorldTableState<Map<string, SpacetimeDB.BeaconDropEvent>>('beaconDropEvents', () => new Map());
+    const [caribouBreedingData, setCaribouBreedingData] = useEngineWorldTableState<Map<string, SpacetimeDB.CaribouBreedingData>>('caribouBreedingData', () => new Map());
+    const [walrusBreedingData, setWalrusBreedingData] = useEngineWorldTableState<Map<string, SpacetimeDB.WalrusBreedingData>>('walrusBreedingData', () => new Map());
+    const [caribouRutState, setCaribouRutState] = useEngineWorldTableState<SpacetimeDB.CaribouRutState | null>('caribouRutState', () => null);
+    const [walrusRutState, setWalrusRutState] = useEngineWorldTableState<SpacetimeDB.WalrusRutState | null>('walrusRutState', () => null);
 
     // ─── Performance Refs (avoid re-renders on high-frequency updates) ───────
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -2962,49 +2957,8 @@ export const useSpacetimeTables = ({
     }, [grassEnabled, connection]);
 
     useEffect(() => {
-        runtimeEngine.updateSnapshot((current) => ({
-            ...current,
-            world: {
-                ...current.world,
-                viewport,
-                tables: {
-                    ...current.world.tables,
-                    players,
-                    trees,
-                    stones,
-                    campfires,
-                    furnaces,
-                    barbecues,
-                    droppedItems,
-                    inventoryItems,
-                    worldState,
-                    activeEquipments,
-                    projectiles,
-                    chunkWeather,
-                    wildAnimals,
-                    alkStations,
-                    monumentParts,
-                },
-            },
-        }));
-    }, [
-        viewport,
-        players,
-        trees,
-        stones,
-        campfires,
-        furnaces,
-        barbecues,
-        droppedItems,
-        inventoryItems,
-        worldState,
-        activeEquipments,
-        projectiles,
-        chunkWeather,
-        wildAnimals,
-        alkStations,
-        monumentParts,
-    ]);
+        runtimeEngine.setWorldViewport(viewport);
+    }, [viewport]);
 
     // ─── Return: all entity state for consumers (App.tsx → GameScreen → GameCanvas) ─
     return {

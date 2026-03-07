@@ -217,6 +217,7 @@ import { useGameReducerFeedbackHandlers } from '../hooks/useGameReducerFeedbackH
 import { useViewportSync } from '../hooks/useViewportSync';
 import { useRemotePlayerInterpolation } from '../hooks/useRemotePlayerInterpolation';
 import { useEngineFrameLoop } from '../engine/react/useEngineFrameLoop';
+import { runtimeEngine } from '../engine/runtimeEngine';
 
 // Import cut grass effect renderer
 import { renderCutGrassEffects } from '../effects/cutGrassEffect';
@@ -1203,6 +1204,54 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Sync ySortedEntities to ref (reduces renderGame dependency array churn)
   useEffect(() => { ySortedEntitiesRef.current = ySortedEntities; }, [ySortedEntities]);
+
+  useEffect(() => {
+    runtimeEngine.updateFrameState('canvas', {
+      maskCanvas: maskCanvasRef.current,
+      overlayRgba,
+    });
+  }, [overlayRgba, maskCanvasRef]);
+
+  useEffect(() => {
+    const frameVisibility = {
+      ySortedEntities,
+      buildingClusters,
+      visibleTreesMap,
+      visibleStonesMap,
+      visibleDroppedItemsMap,
+      visibleCampfiresMap,
+      visibleFurnacesMap,
+      visibleBarbecuesMap,
+      visibleLanternsMap,
+      visibleWildAnimalsMap,
+      visibleAnimalCorpsesMap,
+      visibleBarrelsMap,
+      visibleDoorsMap,
+      visibleFencesMap,
+      visibleAlkStationsMap,
+      swimmingPlayersForBottomHalf: swimmingPlayersForBottomHalfFromHook,
+    };
+
+    runtimeEngine.updateWorldDerived('frameVisibility', frameVisibility);
+    runtimeEngine.updateFrameState('visibleEntities', frameVisibility);
+  }, [
+    ySortedEntities,
+    buildingClusters,
+    visibleTreesMap,
+    visibleStonesMap,
+    visibleDroppedItemsMap,
+    visibleCampfiresMap,
+    visibleFurnacesMap,
+    visibleBarbecuesMap,
+    visibleLanternsMap,
+    visibleWildAnimalsMap,
+    visibleAnimalCorpsesMap,
+    visibleBarrelsMap,
+    visibleDoorsMap,
+    visibleFencesMap,
+    visibleAlkStationsMap,
+    swimmingPlayersForBottomHalfFromHook,
+  ]);
 
   // Cleanup projectile tracking for deleted projectiles (player, hostile, turret - all types)
   // Prevents unbounded Map growth during long combat sessions

@@ -88,6 +88,7 @@ import { triggerAnimalCorpseShakeOptimistic } from '../utils/renderers/animalCor
 import { triggerPlayerCorpseShakeOptimistic } from '../utils/renderers/playerCorpseRenderingUtils';
 import { triggerPlayerShakeOptimistic } from '../utils/renderers/playerRenderingUtils';
 import { triggerAnimalShakeOptimistic } from '../utils/renderers/wildAnimalRenderingUtils';
+import { runtimeEngine } from '../engine/runtimeEngine';
 
 // --- Constants (Copied from GameCanvas) ---
 const SWING_COOLDOWN_MS = 500;
@@ -357,6 +358,36 @@ export const useInputHandler = ({
 
     // --- Derive input disabled state based ONLY on player death --- 
     const isPlayerDead = localPlayer?.isDead ?? false;
+
+    useEffect(() => {
+        runtimeEngine.updateInputState('isAutoAttacking', isAutoAttacking);
+    }, [isAutoAttacking]);
+
+    useEffect(() => {
+        runtimeEngine.updateInputState('isCrouching', isCrouching);
+    }, [isCrouching]);
+
+    useEffect(() => {
+        runtimeEngine.updateInputState('interactionProgress', interactionProgress);
+    }, [interactionProgress]);
+
+    useEffect(() => {
+        runtimeEngine.updateInputState('isActivelyHolding', isActivelyHolding);
+    }, [isActivelyHolding]);
+
+    useEffect(() => {
+        runtimeEngine.updateInputState('currentJumpOffsetY', currentJumpOffsetYRef.current);
+    });
+
+    useEffect(() => {
+        runtimeEngine.updateInputState('optimisticProjectiles', optimisticProjectiles as Map<string, unknown>);
+    }, [optimisticProjectiles]);
+
+    useEffect(() => {
+        runtimeEngine.updateUiState('showBuildingRadialMenu', showBuildingRadialMenu);
+        runtimeEngine.updateUiState('showUpgradeRadialMenu', showUpgradeRadialMenu);
+        runtimeEngine.updateUiState('radialMenuMouse', { x: radialMenuMouseX, y: radialMenuMouseY });
+    }, [showBuildingRadialMenu, showUpgradeRadialMenu, radialMenuMouseX, radialMenuMouseY]);
 
     // --- Effect to reset sprint state if player dies --- 
     useEffect(() => {
@@ -2693,6 +2724,10 @@ export const useInputHandler = ({
 
         return result;
     }, []);
+
+    useEffect(() => {
+        runtimeEngine.updateInputState('processInputsAndActions', processInputsAndActions);
+    }, [processInputsAndActions]);
 
     // ADDED: Helper function to check if Blueprint is equipped
     const isBlueprintEquipped = useCallback(() => {

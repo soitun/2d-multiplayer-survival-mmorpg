@@ -4,22 +4,22 @@ overview: Migrate the client from a React-hosted runtime to an engine-owned runt
 todos:
   - id: define-engine-store
     content: Design the engine-owned runtime store and snapshot domains so React stops being the source of truth.
-    status: pending
+    status: completed
   - id: migrate-db-subscriptions
     content: Move gameplay, UI, and world chunk subscriptions into engine adapters and store mutators.
-    status: pending
+    status: completed
   - id: migrate-input-prediction
     content: Move input handling, prediction, interaction, and optimistic combat/projectile logic into engine-owned services.
-    status: pending
+    status: completed
   - id: migrate-frame-assembly
     content: Centralize interpolation, visibility, y-sort, lighting inputs, and per-frame derived world data into one frame snapshot.
-    status: pending
+    status: completed
   - id: thin-react-shell
     content: Reduce App/GameScreen/GameCanvas to selector consumers, UI overlays, and engine lifecycle wiring.
-    status: pending
+    status: completed
   - id: validate-multiplayer-path
     content: Profile crowded scenes and verify chunk streaming, combat, lighting, and prediction parity under multiplayer load.
-    status: pending
+    status: completed
 isProject: false
 ---
 

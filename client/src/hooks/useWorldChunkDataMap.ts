@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { WorldChunkData } from '../generated/types';
 import { gameConfig } from '../config/gameConfig';
+import { runtimeEngine } from '../engine/runtimeEngine';
+import { useEngineSnapshot } from '../engine/react/useEngineSnapshot';
 
 /**
  * Hook that subscribes to world_chunk_data and provides an O(1) Map lookup
@@ -13,10 +15,22 @@ import { gameConfig } from '../config/gameConfig';
 export function useWorldChunkDataMap(connection: any): Map<string, WorldChunkData> | undefined {
   const chunkCacheRef = useRef<Map<string, WorldChunkData>>(new Map());
   const chunkSizeRef = useRef<number>(gameConfig.chunkSizeTiles);
-  const [version, setVersion] = useState(0);
+  const engineChunkDataMap = useEngineSnapshot(
+    (snapshot) => snapshot.world.chunkDataMap as Map<string, WorldChunkData> | null
+  );
+
+  useEffect(() => {
+    if (!engineChunkDataMap) {
+      runtimeEngine.setWorldChunkDataMap(new Map());
+    }
+  }, [engineChunkDataMap]);
 
   useEffect(() => {
     if (!connection) return;
+
+    const commitChunkCache = () => {
+      runtimeEngine.setWorldChunkDataMap(new Map(chunkCacheRef.current));
+    };
 
     const syncFromTable = () => {
       chunkCacheRef.current.clear();
@@ -25,27 +39,27 @@ export function useWorldChunkDataMap(connection: any): Map<string, WorldChunkDat
         chunkCacheRef.current.set(key, chunk);
         chunkSizeRef.current = chunk.chunkSize || chunkSizeRef.current;
       }
-      setVersion(v => v + 1);
+      commitChunkCache();
     };
 
     const handleChunkInsert = (_ctx: unknown, row: WorldChunkData) => {
       const key = `${row.chunkX},${row.chunkY}`;
       chunkCacheRef.current.set(key, row);
       chunkSizeRef.current = row.chunkSize || chunkSizeRef.current;
-      setVersion(v => v + 1);
+      commitChunkCache();
     };
 
     const handleChunkUpdate = (_ctx: unknown, _oldRow: WorldChunkData, row: WorldChunkData) => {
       const key = `${row.chunkX},${row.chunkY}`;
       chunkCacheRef.current.set(key, row);
       chunkSizeRef.current = row.chunkSize || chunkSizeRef.current;
-      setVersion(v => v + 1);
+      commitChunkCache();
     };
 
     const handleChunkDelete = (_ctx: unknown, row: WorldChunkData) => {
       const key = `${row.chunkX},${row.chunkY}`;
       chunkCacheRef.current.delete(key);
-      setVersion(v => v + 1);
+      commitChunkCache();
     };
 
     connection.db.world_chunk_data.onInsert(handleChunkInsert);
@@ -74,9 +88,9 @@ export function useWorldChunkDataMap(connection: any): Map<string, WorldChunkDat
   }, [connection]);
 
   return useMemo(() => {
-    if (chunkCacheRef.current.size === 0) return undefined;
-    return new Map(chunkCacheRef.current);
-  }, [version]);
+    if (!engineChunkDataMap || engineChunkDataMap.size === 0) return undefined;
+    return engineChunkDataMap;
+  }, [engineChunkDataMap]);
 }
 
 /**

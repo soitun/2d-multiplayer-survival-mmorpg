@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { DbConnection } from '../generated';
 import type {
     Message,
@@ -13,9 +13,9 @@ import type {
     SovaQuestMessage,
     BeaconDropEvent,
 } from '../generated/types';
-import { runtimeEngine } from '../engine/runtimeEngine';
 import { subscribeUiQueries } from '../engine/adapters/spacetime/uiSubscriptions';
 import { unsubscribeAll } from '../engine/adapters/spacetime/nonSpatialSubscriptions';
+import { useEngineUiTableState } from '../engine/react/useEngineStoreState';
 
 type SubscriptionHandle = { unsubscribe: () => void } | null;
 
@@ -38,23 +38,23 @@ export interface UISubscriptionStates {
 }
 
 export const useUISubscriptions = (connection: DbConnection | null): UISubscriptionStates => {
-    const [messages, setMessages] = useState<Map<string, Message>>(() => new Map());
-    const [playerPins, setPlayerPins] = useState<Map<string, PlayerPin>>(() => new Map());
-    const [activeConnections, setActiveConnections] = useState<Map<string, ActiveConnection>>(() => new Map());
+    const [messages, setMessages] = useEngineUiTableState<Map<string, Message>>('messages', () => new Map());
+    const [playerPins, setPlayerPins] = useEngineUiTableState<Map<string, PlayerPin>>('playerPins', () => new Map());
+    const [activeConnections, setActiveConnections] = useEngineUiTableState<Map<string, ActiveConnection>>('activeConnections', () => new Map());
 
-    const [matronages, setMatronages] = useState<Map<string, any>>(() => new Map());
-    const [matronageMembers, setMatronageMembers] = useState<Map<string, any>>(() => new Map());
-    const [matronageInvitations, setMatronageInvitations] = useState<Map<string, any>>(() => new Map());
-    const [matronageOwedShards, setMatronageOwedShards] = useState<Map<string, any>>(() => new Map());
+    const [matronages, setMatronages] = useEngineUiTableState<Map<string, any>>('matronages', () => new Map());
+    const [matronageMembers, setMatronageMembers] = useEngineUiTableState<Map<string, any>>('matronageMembers', () => new Map());
+    const [matronageInvitations, setMatronageInvitations] = useEngineUiTableState<Map<string, any>>('matronageInvitations', () => new Map());
+    const [matronageOwedShards, setMatronageOwedShards] = useEngineUiTableState<Map<string, any>>('matronageOwedShards', () => new Map());
 
-    const [tutorialQuestDefinitions, setTutorialQuestDefinitions] = useState<Map<string, TutorialQuestDefinition>>(() => new Map());
-    const [dailyQuestDefinitions, setDailyQuestDefinitions] = useState<Map<string, DailyQuestDefinition>>(() => new Map());
-    const [playerTutorialProgress, setPlayerTutorialProgress] = useState<Map<string, PlayerTutorialProgress>>(() => new Map());
-    const [playerDailyQuests, setPlayerDailyQuests] = useState<Map<string, PlayerDailyQuest>>(() => new Map());
-    const [questCompletionNotifications, setQuestCompletionNotifications] = useState<Map<string, QuestCompletionNotification>>(() => new Map());
-    const [questProgressNotifications, setQuestProgressNotifications] = useState<Map<string, QuestProgressNotification>>(() => new Map());
-    const [sovaQuestMessages, setSovaQuestMessages] = useState<Map<string, SovaQuestMessage>>(() => new Map());
-    const [beaconDropEvents, setBeaconDropEvents] = useState<Map<string, BeaconDropEvent>>(() => new Map());
+    const [tutorialQuestDefinitions, setTutorialQuestDefinitions] = useEngineUiTableState<Map<string, TutorialQuestDefinition>>('tutorialQuestDefinitions', () => new Map());
+    const [dailyQuestDefinitions, setDailyQuestDefinitions] = useEngineUiTableState<Map<string, DailyQuestDefinition>>('dailyQuestDefinitions', () => new Map());
+    const [playerTutorialProgress, setPlayerTutorialProgress] = useEngineUiTableState<Map<string, PlayerTutorialProgress>>('playerTutorialProgress', () => new Map());
+    const [playerDailyQuests, setPlayerDailyQuests] = useEngineUiTableState<Map<string, PlayerDailyQuest>>('playerDailyQuests', () => new Map());
+    const [questCompletionNotifications, setQuestCompletionNotifications] = useEngineUiTableState<Map<string, QuestCompletionNotification>>('questCompletionNotifications', () => new Map());
+    const [questProgressNotifications, setQuestProgressNotifications] = useEngineUiTableState<Map<string, QuestProgressNotification>>('questProgressNotifications', () => new Map());
+    const [sovaQuestMessages, setSovaQuestMessages] = useEngineUiTableState<Map<string, SovaQuestMessage>>('sovaQuestMessages', () => new Map());
+    const [beaconDropEvents, setBeaconDropEvents] = useEngineUiTableState<Map<string, BeaconDropEvent>>('beaconDropEvents', () => new Map());
 
     const subscribedRef = useRef(false);
     const subsRef = useRef<SubscriptionHandle[]>([]);
@@ -226,49 +226,6 @@ export const useUISubscriptions = (connection: DbConnection | null): UISubscript
             setBeaconDropEvents(new Map());
         };
     }, [connection]);
-
-    useEffect(() => {
-        runtimeEngine.updateSnapshot((current) => ({
-            ...current,
-            ui: {
-                ...current.ui,
-                uiTables: {
-                    ...current.ui.uiTables,
-                    messages,
-                    playerPins,
-                    activeConnections,
-                    matronages,
-                    matronageMembers,
-                    matronageInvitations,
-                    matronageOwedShards,
-                    tutorialQuestDefinitions,
-                    dailyQuestDefinitions,
-                    playerTutorialProgress,
-                    playerDailyQuests,
-                    questCompletionNotifications,
-                    questProgressNotifications,
-                    sovaQuestMessages,
-                    beaconDropEvents,
-                },
-            },
-        }));
-    }, [
-        messages,
-        playerPins,
-        activeConnections,
-        matronages,
-        matronageMembers,
-        matronageInvitations,
-        matronageOwedShards,
-        tutorialQuestDefinitions,
-        dailyQuestDefinitions,
-        playerTutorialProgress,
-        playerDailyQuests,
-        questCompletionNotifications,
-        questProgressNotifications,
-        sovaQuestMessages,
-        beaconDropEvents,
-    ]);
 
     return {
         messages,

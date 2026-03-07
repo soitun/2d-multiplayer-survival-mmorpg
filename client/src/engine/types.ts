@@ -1,21 +1,56 @@
 import type { FrameInfo } from '../hooks/useGameLoop';
 
+export interface EngineConnectionSnapshot {
+  connection: unknown | null;
+  identityHex: string | null;
+}
+
 export interface EngineWorldSnapshot {
   predictedPosition: { x: number; y: number } | null;
   viewport: { minX: number; minY: number; maxX: number; maxY: number } | null;
   tables: Record<string, unknown>;
+  chunkDataMap: Map<string, unknown> | null;
+  runtimeState: Record<string, unknown>;
+  derived: Record<string, unknown>;
+}
+
+export interface EngineFrameSnapshot {
+  renderAlpha: number;
+  visibleEntities: Record<string, unknown>;
+  remotePlayerPositions: Map<string, { x: number; y: number }>;
+  canvas: {
+    maskCanvas: HTMLCanvasElement | null;
+    overlayRgba: string;
+  };
+}
+
+export interface EngineInputSnapshot {
+  movementDirection: { x: number; y: number };
+  sprinting: boolean;
+  isAutoWalking: boolean;
+  isAutoAttacking: boolean;
+  isActivelyHolding: boolean;
+  isCrouching: boolean;
+  currentJumpOffsetY: number;
+  interactionProgress: unknown | null;
+  optimisticProjectiles: Map<string, unknown>;
+  processInputsAndActions: (() => void) | null;
 }
 
 export interface EngineUiSnapshot {
   connected: boolean;
   loading: boolean;
   uiTables: Record<string, unknown>;
+  state: Record<string, unknown>;
 }
 
 export interface EngineRuntimeSnapshot {
   tick: number;
   lastFrameInfo: FrameInfo | null;
+  connection: EngineConnectionSnapshot;
   world: EngineWorldSnapshot;
+  frame: EngineFrameSnapshot;
+  input: EngineInputSnapshot;
   ui: EngineUiSnapshot;
 }
 
