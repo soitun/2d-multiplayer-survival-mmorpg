@@ -40,6 +40,7 @@ import {
     setupGameplayConnection,
     type GameplayTableBindings,
 } from '../engine/adapters/spacetime/gameplayConnectionSetup';
+import { composeGameplayTableBindings } from '../engine/adapters/spacetime/gameplayTableBindings';
 import { recordProjectileDebugEvent } from '../utils/projectileDebug';
 import {
     getDefaultEnvironmentalQueries,
@@ -2006,92 +2007,104 @@ export const useSpacetimeTables = ({
                 setMatronageOwedShards(prev => { const newMap = new Map(prev); newMap.delete(owed.playerId.toHexString()); return newMap; });
             };
 
-            const tableBindings: GameplayTableBindings = {
-                player: { onInsert: handlePlayerInsert, onUpdate: handlePlayerUpdate, onDelete: handlePlayerDelete },
-                tree: { onInsert: handleTreeInsert, onUpdate: handleTreeUpdate, onDelete: handleTreeDelete },
-                stone: { onInsert: handleStoneInsert, onUpdate: handleStoneUpdate, onDelete: handleStoneDelete },
-                rune_stone: { onInsert: handleRuneStoneInsert, onUpdate: handleRuneStoneUpdate, onDelete: handleRuneStoneDelete },
-                cairn: { onInsert: handleCairnInsert, onUpdate: handleCairnUpdate, onDelete: handleCairnDelete },
-                player_discovered_cairn: { onInsert: handlePlayerDiscoveredCairnInsert, onUpdate: handlePlayerDiscoveredCairnUpdate, onDelete: handlePlayerDiscoveredCairnDelete },
-                campfire: { onInsert: handleCampfireInsert, onUpdate: handleCampfireUpdate, onDelete: handleCampfireDelete },
-                barbecue: { onInsert: handleBarbecueInsert, onUpdate: handleBarbecueUpdate, onDelete: handleBarbecueDelete },
-                furnace: { onInsert: handleFurnaceInsert, onUpdate: handleFurnaceUpdate, onDelete: handleFurnaceDelete },
-                lantern: { onInsert: handleLanternInsert, onUpdate: handleLanternUpdate, onDelete: handleLanternDelete },
-                turret: { onInsert: handleTurretInsert, onUpdate: handleTurretUpdate, onDelete: handleTurretDelete },
-                homestead_hearth: { onInsert: handleHomesteadHearthInsert, onUpdate: handleHomesteadHearthUpdate, onDelete: handleHomesteadHearthDelete },
-                broth_pot: { onInsert: handleBrothPotInsert, onUpdate: handleBrothPotUpdate, onDelete: handleBrothPotDelete },
-                item_definition: { onInsert: handleItemDefInsert, onUpdate: handleItemDefUpdate, onDelete: handleItemDefDelete },
-                inventory_item: { onInsert: handleInventoryInsert, onUpdate: handleInventoryUpdate, onDelete: handleInventoryDelete },
-                world_state: { onInsert: handleWorldStateInsert, onUpdate: handleWorldStateUpdate, onDelete: handleWorldStateDelete },
-                active_equipment: { onInsert: handleActiveEquipmentInsert, onUpdate: handleActiveEquipmentUpdate, onDelete: handleActiveEquipmentDelete },
-                harvestable_resource: { onInsert: handleHarvestableResourceInsert, onUpdate: handleHarvestableResourceUpdate, onDelete: handleHarvestableResourceDelete },
-                planted_seed: { onInsert: handlePlantedSeedInsert, onUpdate: handlePlantedSeedUpdate, onDelete: handlePlantedSeedDelete },
-                dropped_item: { onInsert: handleDroppedItemInsert, onUpdate: handleDroppedItemUpdate, onDelete: handleDroppedItemDelete },
-                wooden_storage_box: { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete },
-                recipe: { onInsert: handleRecipeInsert, onUpdate: handleRecipeUpdate, onDelete: handleRecipeDelete },
-                crafting_queue_item: { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete },
-                player_stats: { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete },
-                achievement_definition: { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete },
-                player_achievement: { onInsert: handlePlayerAchievementInsert, onUpdate: handlePlayerAchievementUpdate, onDelete: handlePlayerAchievementDelete },
-                achievement_unlock_notification: { onInsert: handleAchievementUnlockNotificationInsert, onUpdate: handleAchievementUnlockNotificationUpdate, onDelete: handleAchievementUnlockNotificationDelete },
-                level_up_notification: { onInsert: handleLevelUpNotificationInsert, onUpdate: handleLevelUpNotificationUpdate, onDelete: handleLevelUpNotificationDelete },
-                daily_login_notification: { onInsert: handleDailyLoginNotificationInsert, onUpdate: handleDailyLoginNotificationUpdate, onDelete: handleDailyLoginNotificationDelete },
-                progress_notification: { onInsert: handleProgressNotificationInsert, onUpdate: handleProgressNotificationUpdate, onDelete: handleProgressNotificationDelete },
-                comparative_stat_notification: { onInsert: handleComparativeStatNotificationInsert, onUpdate: handleComparativeStatNotificationUpdate, onDelete: handleComparativeStatNotificationDelete },
-                leaderboard_entry: { onInsert: handleLeaderboardEntryInsert, onUpdate: handleLeaderboardEntryUpdate, onDelete: handleLeaderboardEntryDelete },
-                daily_login_reward: { onInsert: handleDailyLoginRewardInsert, onUpdate: handleDailyLoginRewardUpdate, onDelete: handleDailyLoginRewardDelete },
-                plant_config_definition: { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete },
-                player_discovered_plant: { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete },
-                drone_event: { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete },
-                sleeping_bag: { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete },
-                player_corpse: { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete },
-                stash: { onInsert: handleStashInsert, onUpdate: handleStashUpdate, onDelete: handleStashDelete },
-                active_consumable_effect: { onInsert: handleActiveConsumableEffectInsert, onUpdate: handleActiveConsumableEffectUpdate, onDelete: handleActiveConsumableEffectDelete },
-                cloud: { onInsert: handleCloudInsert, onUpdate: handleCloudUpdate, onDelete: handleCloudDelete },
-                grass: { onInsert: handleGrassInsert, onUpdate: handleGrassUpdate, onDelete: handleGrassDelete },
-                grass_state: { onInsert: handleGrassStateInsert, onUpdate: handleGrassStateUpdate, onDelete: handleGrassStateDelete },
-                knocked_out_status: { onInsert: handleKnockedOutStatusInsert, onUpdate: handleKnockedOutStatusUpdate, onDelete: handleKnockedOutStatusDelete },
-                ranged_weapon_stats: { onInsert: handleRangedWeaponStatsInsert, onUpdate: handleRangedWeaponStatsUpdate, onDelete: handleRangedWeaponStatsDelete },
-                projectile: { onInsert: handleProjectileInsert, onUpdate: handleProjectileUpdate, onDelete: handleProjectileDelete },
-                death_marker: { onInsert: handleDeathMarkerInsert, onUpdate: handleDeathMarkerUpdate, onDelete: handleDeathMarkerDelete },
-                shelter: { onInsert: handleShelterInsert, onUpdate: handleShelterUpdate, onDelete: handleShelterDelete },
-                minimap_cache: { onInsert: handleMinimapCacheInsert, onUpdate: handleMinimapCacheUpdate, onDelete: handleMinimapCacheDelete },
-                player_dodge_roll_state: { onInsert: handlePlayerDodgeRollStateInsert, onUpdate: handlePlayerDodgeRollStateUpdate, onDelete: handlePlayerDodgeRollStateDelete },
-                fishing_session: { onInsert: handleFishingSessionInsert, onUpdate: handleFishingSessionUpdate, onDelete: handleFishingSessionDelete },
-                sound_event: { onInsert: handleSoundEventInsert, onUpdate: handleSoundEventUpdate, onDelete: handleSoundEventDelete },
-                continuous_sound: { onInsert: handleContinuousSoundInsert, onUpdate: handleContinuousSoundUpdate, onDelete: handleContinuousSoundDelete },
-                player_drinking_cooldown: { onInsert: handlePlayerDrinkingCooldownInsert, onUpdate: handlePlayerDrinkingCooldownUpdate, onDelete: handlePlayerDrinkingCooldownDelete },
-                rain_collector: { onInsert: handleRainCollectorInsert, onUpdate: handleRainCollectorUpdate, onDelete: handleRainCollectorDelete },
-                water_patch: { onInsert: handleWaterPatchInsert, onUpdate: handleWaterPatchUpdate, onDelete: handleWaterPatchDelete },
-                fertilizer_patch: { onInsert: handleFertilizerPatchInsert, onUpdate: handleFertilizerPatchUpdate, onDelete: handleFertilizerPatchDelete },
-                fire_patch: { onInsert: handleFirePatchInsert, onUpdate: handleFirePatchUpdate, onDelete: handleFirePatchDelete },
-                placed_explosive: { onInsert: handlePlacedExplosiveInsert, onUpdate: handlePlacedExplosiveUpdate, onDelete: handlePlacedExplosiveDelete },
-                wild_animal: { onInsert: handleWildAnimalInsert, onUpdate: handleWildAnimalUpdate, onDelete: handleWildAnimalDelete },
-                animal_corpse: { onInsert: handleAnimalCorpseInsert, onUpdate: handleAnimalCorpseUpdate, onDelete: handleAnimalCorpseDelete },
-                caribou_breeding_data: { onInsert: handleCaribouBreedingDataInsert, onUpdate: handleCaribouBreedingDataUpdate, onDelete: handleCaribouBreedingDataDelete },
-                walrus_breeding_data: { onInsert: handleWalrusBreedingDataInsert, onUpdate: handleWalrusBreedingDataUpdate, onDelete: handleWalrusBreedingDataDelete },
-                caribou_rut_state: { onInsert: handleCaribouRutStateInsert, onUpdate: handleCaribouRutStateUpdate, onDelete: handleCaribouRutStateDelete },
-                walrus_rut_state: { onInsert: handleWalrusRutStateInsert, onUpdate: handleWalrusRutStateUpdate, onDelete: handleWalrusRutStateDelete },
-                barrel: { onInsert: handleBarrelInsert, onUpdate: handleBarrelUpdate, onDelete: handleBarrelDelete },
-                road_lamppost: { onInsert: handleRoadLamppostInsert, onUpdate: handleRoadLamppostUpdate, onDelete: handleRoadLamppostDelete },
-                sea_stack: { onInsert: handleSeaStackInsert, onUpdate: handleSeaStackUpdate, onDelete: handleSeaStackDelete },
-                foundation_cell: { onInsert: handleFoundationCellInsert, onUpdate: handleFoundationCellUpdate, onDelete: handleFoundationCellDelete },
-                wall_cell: { onInsert: handleWallCellInsert, onUpdate: handleWallCellUpdate, onDelete: handleWallCellDelete },
-                door: { onInsert: handleDoorInsert, onUpdate: handleDoorUpdate, onDelete: handleDoorDelete },
-                fence: { onInsert: handleFenceInsert, onUpdate: handleFenceUpdate, onDelete: handleFenceDelete },
-                fumarole: { onInsert: handleFumaroleInsert, onUpdate: handleFumaroleUpdate, onDelete: handleFumaroleDelete },
-                basalt_column: { onInsert: handleBasaltColumnInsert, onUpdate: handleBasaltColumnUpdate, onDelete: handleBasaltColumnDelete },
-                living_coral: { onInsert: handleLivingCoralInsert, onUpdate: handleLivingCoralUpdate, onDelete: handleLivingCoralDelete },
-                chunk_weather: { onInsert: handleChunkWeatherInsert, onUpdate: handleChunkWeatherUpdate, onDelete: handleChunkWeatherDelete },
-                alk_station: { onInsert: handleAlkStationInsert, onUpdate: handleAlkStationUpdate, onDelete: handleAlkStationDelete },
-                monument_part: { onInsert: handleMonumentPartInsert, onUpdate: handleMonumentPartUpdate, onDelete: handleMonumentPartDelete },
-                large_quarry: { onInsert: handleLargeQuarryInsert, onUpdate: handleLargeQuarryUpdate, onDelete: handleLargeQuarryDelete },
-                alk_contract: { onInsert: handleAlkContractInsert, onUpdate: handleAlkContractUpdate, onDelete: handleAlkContractDelete },
-                alk_player_contract: { onInsert: handleAlkPlayerContractInsert, onUpdate: handleAlkPlayerContractUpdate, onDelete: handleAlkPlayerContractDelete },
-                alk_state: { onInsert: handleAlkStateInsert, onUpdate: handleAlkStateUpdate, onDelete: handleAlkStateDelete },
-                player_shard_balance: { onInsert: handlePlayerShardBalanceInsert, onUpdate: handlePlayerShardBalanceUpdate, onDelete: handlePlayerShardBalanceDelete },
-                memory_grid_progress: { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete },
-            };
+            const tableBindings: GameplayTableBindings = composeGameplayTableBindings({
+                progression: {
+                    player_stats: { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete },
+                    achievement_definition: { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete },
+                    player_achievement: { onInsert: handlePlayerAchievementInsert, onUpdate: handlePlayerAchievementUpdate, onDelete: handlePlayerAchievementDelete },
+                    achievement_unlock_notification: { onInsert: handleAchievementUnlockNotificationInsert, onUpdate: handleAchievementUnlockNotificationUpdate, onDelete: handleAchievementUnlockNotificationDelete },
+                    level_up_notification: { onInsert: handleLevelUpNotificationInsert, onUpdate: handleLevelUpNotificationUpdate, onDelete: handleLevelUpNotificationDelete },
+                    daily_login_notification: { onInsert: handleDailyLoginNotificationInsert, onUpdate: handleDailyLoginNotificationUpdate, onDelete: handleDailyLoginNotificationDelete },
+                    progress_notification: { onInsert: handleProgressNotificationInsert, onUpdate: handleProgressNotificationUpdate, onDelete: handleProgressNotificationDelete },
+                    comparative_stat_notification: { onInsert: handleComparativeStatNotificationInsert, onUpdate: handleComparativeStatNotificationUpdate, onDelete: handleComparativeStatNotificationDelete },
+                    leaderboard_entry: { onInsert: handleLeaderboardEntryInsert, onUpdate: handleLeaderboardEntryUpdate, onDelete: handleLeaderboardEntryDelete },
+                    daily_login_reward: { onInsert: handleDailyLoginRewardInsert, onUpdate: handleDailyLoginRewardUpdate, onDelete: handleDailyLoginRewardDelete },
+                    plant_config_definition: { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete },
+                    player_discovered_plant: { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete },
+                    alk_contract: { onInsert: handleAlkContractInsert, onUpdate: handleAlkContractUpdate, onDelete: handleAlkContractDelete },
+                    alk_player_contract: { onInsert: handleAlkPlayerContractInsert, onUpdate: handleAlkPlayerContractUpdate, onDelete: handleAlkPlayerContractDelete },
+                    alk_state: { onInsert: handleAlkStateInsert, onUpdate: handleAlkStateUpdate, onDelete: handleAlkStateDelete },
+                    player_shard_balance: { onInsert: handlePlayerShardBalanceInsert, onUpdate: handlePlayerShardBalanceUpdate, onDelete: handlePlayerShardBalanceDelete },
+                    memory_grid_progress: { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete },
+                    alk_station: { onInsert: handleAlkStationInsert, onUpdate: handleAlkStationUpdate, onDelete: handleAlkStationDelete },
+                    monument_part: { onInsert: handleMonumentPartInsert, onUpdate: handleMonumentPartUpdate, onDelete: handleMonumentPartDelete },
+                    large_quarry: { onInsert: handleLargeQuarryInsert, onUpdate: handleLargeQuarryUpdate, onDelete: handleLargeQuarryDelete },
+                },
+                structures: {
+                    campfire: { onInsert: handleCampfireInsert, onUpdate: handleCampfireUpdate, onDelete: handleCampfireDelete },
+                    barbecue: { onInsert: handleBarbecueInsert, onUpdate: handleBarbecueUpdate, onDelete: handleBarbecueDelete },
+                    furnace: { onInsert: handleFurnaceInsert, onUpdate: handleFurnaceUpdate, onDelete: handleFurnaceDelete },
+                    lantern: { onInsert: handleLanternInsert, onUpdate: handleLanternUpdate, onDelete: handleLanternDelete },
+                    turret: { onInsert: handleTurretInsert, onUpdate: handleTurretUpdate, onDelete: handleTurretDelete },
+                    homestead_hearth: { onInsert: handleHomesteadHearthInsert, onUpdate: handleHomesteadHearthUpdate, onDelete: handleHomesteadHearthDelete },
+                    broth_pot: { onInsert: handleBrothPotInsert, onUpdate: handleBrothPotUpdate, onDelete: handleBrothPotDelete },
+                    wooden_storage_box: { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete },
+                    sleeping_bag: { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete },
+                    stash: { onInsert: handleStashInsert, onUpdate: handleStashUpdate, onDelete: handleStashDelete },
+                    rain_collector: { onInsert: handleRainCollectorInsert, onUpdate: handleRainCollectorUpdate, onDelete: handleRainCollectorDelete },
+                    water_patch: { onInsert: handleWaterPatchInsert, onUpdate: handleWaterPatchUpdate, onDelete: handleWaterPatchDelete },
+                    fertilizer_patch: { onInsert: handleFertilizerPatchInsert, onUpdate: handleFertilizerPatchUpdate, onDelete: handleFertilizerPatchDelete },
+                    fire_patch: { onInsert: handleFirePatchInsert, onUpdate: handleFirePatchUpdate, onDelete: handleFirePatchDelete },
+                    placed_explosive: { onInsert: handlePlacedExplosiveInsert, onUpdate: handlePlacedExplosiveUpdate, onDelete: handlePlacedExplosiveDelete },
+                    shelter: { onInsert: handleShelterInsert, onUpdate: handleShelterUpdate, onDelete: handleShelterDelete },
+                    barrel: { onInsert: handleBarrelInsert, onUpdate: handleBarrelUpdate, onDelete: handleBarrelDelete },
+                    road_lamppost: { onInsert: handleRoadLamppostInsert, onUpdate: handleRoadLamppostUpdate, onDelete: handleRoadLamppostDelete },
+                    foundation_cell: { onInsert: handleFoundationCellInsert, onUpdate: handleFoundationCellUpdate, onDelete: handleFoundationCellDelete },
+                    wall_cell: { onInsert: handleWallCellInsert, onUpdate: handleWallCellUpdate, onDelete: handleWallCellDelete },
+                    door: { onInsert: handleDoorInsert, onUpdate: handleDoorUpdate, onDelete: handleDoorDelete },
+                    fence: { onInsert: handleFenceInsert, onUpdate: handleFenceUpdate, onDelete: handleFenceDelete },
+                },
+                items: {
+                    item_definition: { onInsert: handleItemDefInsert, onUpdate: handleItemDefUpdate, onDelete: handleItemDefDelete },
+                    inventory_item: { onInsert: handleInventoryInsert, onUpdate: handleInventoryUpdate, onDelete: handleInventoryDelete },
+                    active_equipment: { onInsert: handleActiveEquipmentInsert, onUpdate: handleActiveEquipmentUpdate, onDelete: handleActiveEquipmentDelete },
+                    harvestable_resource: { onInsert: handleHarvestableResourceInsert, onUpdate: handleHarvestableResourceUpdate, onDelete: handleHarvestableResourceDelete },
+                    planted_seed: { onInsert: handlePlantedSeedInsert, onUpdate: handlePlantedSeedUpdate, onDelete: handlePlantedSeedDelete },
+                    dropped_item: { onInsert: handleDroppedItemInsert, onUpdate: handleDroppedItemUpdate, onDelete: handleDroppedItemDelete },
+                    recipe: { onInsert: handleRecipeInsert, onUpdate: handleRecipeUpdate, onDelete: handleRecipeDelete },
+                    crafting_queue_item: { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete },
+                    active_consumable_effect: { onInsert: handleActiveConsumableEffectInsert, onUpdate: handleActiveConsumableEffectUpdate, onDelete: handleActiveConsumableEffectDelete },
+                    ranged_weapon_stats: { onInsert: handleRangedWeaponStatsInsert, onUpdate: handleRangedWeaponStatsUpdate, onDelete: handleRangedWeaponStatsDelete },
+                    player_drinking_cooldown: { onInsert: handlePlayerDrinkingCooldownInsert, onUpdate: handlePlayerDrinkingCooldownUpdate, onDelete: handlePlayerDrinkingCooldownDelete },
+                    minimap_cache: { onInsert: handleMinimapCacheInsert, onUpdate: handleMinimapCacheUpdate, onDelete: handleMinimapCacheDelete },
+                },
+                world: {
+                    tree: { onInsert: handleTreeInsert, onUpdate: handleTreeUpdate, onDelete: handleTreeDelete },
+                    stone: { onInsert: handleStoneInsert, onUpdate: handleStoneUpdate, onDelete: handleStoneDelete },
+                    rune_stone: { onInsert: handleRuneStoneInsert, onUpdate: handleRuneStoneUpdate, onDelete: handleRuneStoneDelete },
+                    cairn: { onInsert: handleCairnInsert, onUpdate: handleCairnUpdate, onDelete: handleCairnDelete },
+                    player_discovered_cairn: { onInsert: handlePlayerDiscoveredCairnInsert, onUpdate: handlePlayerDiscoveredCairnUpdate, onDelete: handlePlayerDiscoveredCairnDelete },
+                    world_state: { onInsert: handleWorldStateInsert, onUpdate: handleWorldStateUpdate, onDelete: handleWorldStateDelete },
+                    cloud: { onInsert: handleCloudInsert, onUpdate: handleCloudUpdate, onDelete: handleCloudDelete },
+                    grass: { onInsert: handleGrassInsert, onUpdate: handleGrassUpdate, onDelete: handleGrassDelete },
+                    grass_state: { onInsert: handleGrassStateInsert, onUpdate: handleGrassStateUpdate, onDelete: handleGrassStateDelete },
+                    sea_stack: { onInsert: handleSeaStackInsert, onUpdate: handleSeaStackUpdate, onDelete: handleSeaStackDelete },
+                    fumarole: { onInsert: handleFumaroleInsert, onUpdate: handleFumaroleUpdate, onDelete: handleFumaroleDelete },
+                    basalt_column: { onInsert: handleBasaltColumnInsert, onUpdate: handleBasaltColumnUpdate, onDelete: handleBasaltColumnDelete },
+                    living_coral: { onInsert: handleLivingCoralInsert, onUpdate: handleLivingCoralUpdate, onDelete: handleLivingCoralDelete },
+                    chunk_weather: { onInsert: handleChunkWeatherInsert, onUpdate: handleChunkWeatherUpdate, onDelete: handleChunkWeatherDelete },
+                    drone_event: { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete },
+                },
+                combat: {
+                    player: { onInsert: handlePlayerInsert, onUpdate: handlePlayerUpdate, onDelete: handlePlayerDelete },
+                    knocked_out_status: { onInsert: handleKnockedOutStatusInsert, onUpdate: handleKnockedOutStatusUpdate, onDelete: handleKnockedOutStatusDelete },
+                    projectile: { onInsert: handleProjectileInsert, onUpdate: handleProjectileUpdate, onDelete: handleProjectileDelete },
+                    death_marker: { onInsert: handleDeathMarkerInsert, onUpdate: handleDeathMarkerUpdate, onDelete: handleDeathMarkerDelete },
+                    player_dodge_roll_state: { onInsert: handlePlayerDodgeRollStateInsert, onUpdate: handlePlayerDodgeRollStateUpdate, onDelete: handlePlayerDodgeRollStateDelete },
+                    fishing_session: { onInsert: handleFishingSessionInsert, onUpdate: handleFishingSessionUpdate, onDelete: handleFishingSessionDelete },
+                    sound_event: { onInsert: handleSoundEventInsert, onUpdate: handleSoundEventUpdate, onDelete: handleSoundEventDelete },
+                    continuous_sound: { onInsert: handleContinuousSoundInsert, onUpdate: handleContinuousSoundUpdate, onDelete: handleContinuousSoundDelete },
+                    wild_animal: { onInsert: handleWildAnimalInsert, onUpdate: handleWildAnimalUpdate, onDelete: handleWildAnimalDelete },
+                    animal_corpse: { onInsert: handleAnimalCorpseInsert, onUpdate: handleAnimalCorpseUpdate, onDelete: handleAnimalCorpseDelete },
+                    caribou_breeding_data: { onInsert: handleCaribouBreedingDataInsert, onUpdate: handleCaribouBreedingDataUpdate, onDelete: handleCaribouBreedingDataDelete },
+                    walrus_breeding_data: { onInsert: handleWalrusBreedingDataInsert, onUpdate: handleWalrusBreedingDataUpdate, onDelete: handleWalrusBreedingDataDelete },
+                    caribou_rut_state: { onInsert: handleCaribouRutStateInsert, onUpdate: handleCaribouRutStateUpdate, onDelete: handleCaribouRutStateDelete },
+                    walrus_rut_state: { onInsert: handleWalrusRutStateInsert, onUpdate: handleWalrusRutStateUpdate, onDelete: handleWalrusRutStateDelete },
+                },
+                social: {
+                    player_corpse: { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete },
+                },
+            });
 
             const currentInitialSubs = setupGameplayConnection({
                 connection,
@@ -2101,14 +2114,14 @@ export const useSpacetimeTables = ({
                         return;
                     }
 
-                    setFirePatches(prev => {
-                        const newMap = new Map(prev);
-                        existingFirePatches.forEach(fp => {
-                            newMap.set(fp.id.toString(), fp);
-                            console.log(`[FIRE_PATCH] Added cached fire patch ${fp.id} at (${fp.posX.toFixed(1)}, ${fp.posY.toFixed(1)})`);
-                        });
-                        return newMap;
+                setFirePatches(prev => {
+                    const newMap = new Map(prev);
+                    existingFirePatches.forEach(fp => {
+                        newMap.set(fp.id.toString(), fp);
+                        console.log(`[FIRE_PATCH] Added cached fire patch ${fp.id} at (${fp.posX.toFixed(1)}, ${fp.posY.toFixed(1)})`);
                     });
+                    return newMap;
+                });
                 },
             });
             gameplaySubscriptionsRuntime.replaceNonSpatialHandles(currentInitialSubs);
@@ -2124,7 +2137,7 @@ export const useSpacetimeTables = ({
         try {
             console.log(`[GRASS_RESUB] Subscribing to grass/grass_state for chunk ${chunkIndex}`);
             return subscribeGrassChunk(connection, chunkIndex, GRASS_PERFORMANCE_MODE);
-        } catch (error) {
+                        } catch (error) {
             console.error(`[GRASS_RESUB] Failed to re-subscribe grass for chunk ${chunkIndex}:`, error);
             return [];
         }
@@ -2137,47 +2150,47 @@ export const useSpacetimeTables = ({
     };
 
     const resetDataState = () => {
-        if (playerRenderTimerRef.current) {
-            clearTimeout(playerRenderTimerRef.current);
-            playerRenderTimerRef.current = null;
-        }
+                if (playerRenderTimerRef.current) {
+                    clearTimeout(playerRenderTimerRef.current);
+                    playerRenderTimerRef.current = null;
+                }
 
-        setLocalPlayerRegistered(false);
+                setLocalPlayerRegistered(false);
 
-        const mapResetters: Array<React.Dispatch<React.SetStateAction<Map<any, any>>>> = [
-            setPlayers, setTrees, setStones, setRuneStones, setCairns, setPlayerDiscoveredCairns,
-            setCampfires, setBarbecues, setFurnaces, setLanterns, setHomesteadHearths, setBrothPots,
-            setHarvestableResources, setItemDefinitions, setRecipes, setInventoryItems, setActiveEquipments,
-            setDroppedItems, setWoodenStorageBoxes, setCraftingQueueItems, setMessages, setPlayerPins,
-            setActiveConnections, setSleepingBags, setPlayerCorpses, setStashes, setRainCollectors,
+                const mapResetters: Array<React.Dispatch<React.SetStateAction<Map<any, any>>>> = [
+                    setPlayers, setTrees, setStones, setRuneStones, setCairns, setPlayerDiscoveredCairns,
+                    setCampfires, setBarbecues, setFurnaces, setLanterns, setHomesteadHearths, setBrothPots,
+                    setHarvestableResources, setItemDefinitions, setRecipes, setInventoryItems, setActiveEquipments,
+                    setDroppedItems, setWoodenStorageBoxes, setCraftingQueueItems, setMessages, setPlayerPins,
+                    setActiveConnections, setSleepingBags, setPlayerCorpses, setStashes, setRainCollectors,
             setWaterPatches, setFertilizerPatches, setFirePatches, setPlacedExplosives, setHotSprings,
             setActiveConsumableEffects, setClouds, setGrass, setGrassState, setKnockedOutStatus,
             setRangedWeaponStats, setProjectiles, setDeathMarkers, setShelters, setPlayerDodgeRollStates,
             setFishingSessions, setPlantedSeeds, setSoundEvents, setContinuousSounds,
             setPlayerDrinkingCooldowns, setWildAnimals, setAnimalCorpses, setSeaStacks, setChunkWeather,
             setFumaroles, setBasaltColumns, setLivingCorals,
-        ];
-        for (const resetMap of mapResetters) {
-            resetMap(new Map());
-        }
-        setWorldState(null);
+                ];
+                for (const resetMap of mapResetters) {
+                    resetMap(new Map());
+                }
+                setWorldState(null);
 
-        projectilesRef.current.clear();
-        if (projectilesUpdateTimeoutRef.current) {
-            clearTimeout(projectilesUpdateTimeoutRef.current);
-            projectilesUpdateTimeoutRef.current = null;
-        }
+                projectilesRef.current.clear();
+                if (projectilesUpdateTimeoutRef.current) {
+                    clearTimeout(projectilesUpdateTimeoutRef.current);
+                    projectilesUpdateTimeoutRef.current = null;
+                }
 
-        playerDodgeRollStatesRef.current.clear();
-        wildAnimalsRef.current.clear();
-        if (wildAnimalsUpdateTimeoutRef.current) {
-            clearTimeout(wildAnimalsUpdateTimeoutRef.current);
-            wildAnimalsUpdateTimeoutRef.current = null;
-        }
+                playerDodgeRollStatesRef.current.clear();
+                wildAnimalsRef.current.clear();
+                if (wildAnimalsUpdateTimeoutRef.current) {
+                    clearTimeout(wildAnimalsUpdateTimeoutRef.current);
+                    wildAnimalsUpdateTimeoutRef.current = null;
+                }
 
         hostileDeathCleanupTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
-        hostileDeathCleanupTimeoutsRef.current.clear();
-        setHostileDeathEvents([]);
+                hostileDeathCleanupTimeoutsRef.current.clear();
+                setHostileDeathEvents([]);
     };
 
     useEffect(() => {

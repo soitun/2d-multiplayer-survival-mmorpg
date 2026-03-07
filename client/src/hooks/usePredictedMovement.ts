@@ -29,7 +29,6 @@ import { Player } from '../generated/types';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 import { resolveClientCollision, GameEntities } from '../utils/clientCollision';
 import { gameConfig } from '../config/gameConfig';
-import { runtimeEngine } from '../engine/runtimeEngine';
 import {
   DODGE_ROLL_COOLDOWN_MS,
   DODGE_ROLL_DISTANCE_PX,
@@ -183,13 +182,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     jump
   } = usePlayerActions();
 
-  const syncEngineMovementState = useCallback(() => {
-    runtimeEngine.setPredictedPosition(clientPositionRef.current);
-    runtimeEngine.updateWorldState('facingDirection', lastFacingDirection.current);
-    runtimeEngine.updateInputState('isAutoWalking', isAutoWalking);
-    runtimeEngine.updateInputState('isAutoAttacking', isAutoAttacking);
-  }, [isAutoWalking, isAutoAttacking]);
-
   // Add sequence tracking
   const clientSequenceRef = useRef(0n);
   const lastAckedSequenceRef = useRef(0n);
@@ -263,11 +255,10 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       pendingPosition.current = serverPos;
       lastFacingDirection.current = localPlayer.direction || 'down';
       wasDeadRef.current = localPlayer.isDead;
-      syncEngineMovementState();
       
       // Refs are now the source of truth for movement state consumers.
     }
-  }, [localPlayer?.identity, localPlayer?.direction, localPlayer?.isDead, syncEngineMovementState]);
+  }, [localPlayer?.identity, localPlayer?.direction, localPlayer?.isDead]);
 
   // Listen for server position updates - PROPER CLIENT-SIDE PREDICTION
   useEffect(() => {
@@ -298,7 +289,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       serverPositionRef.current = { ...newServerPos };
       pendingPosition.current = { ...newServerPos };
       lastFacingDirection.current = localPlayer.direction || 'down';
-      syncEngineMovementState();
       
       // Reset sequence numbers to prevent server from ignoring updates
       clientSequenceRef.current = 0n;
@@ -480,7 +470,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         // Update position (collision-resolved)
         clientPositionRef.current = { x: collisionResult.x, y: collisionResult.y };
         pendingPosition.current = { x: collisionResult.x, y: collisionResult.y };
-        syncEngineMovementState();
         
         // Calculate direction for animation purposes (use client's dodge roll data)
         if (dodgeDistance > 0.01) {
@@ -600,7 +589,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         // Use collision-resolved position
         clientPositionRef.current = { x: collisionResult.x, y: collisionResult.y };
         pendingPosition.current = { x: collisionResult.x, y: collisionResult.y };
-        syncEngineMovementState();
         
         // Position updates are ref-driven; no forced React rerender here.
       } else if (localPlayer.isKnockedOut && hasDirectionalInput) {
@@ -681,11 +669,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       console.error(`❌ [SimpleMovement] Error in applyMovementStep:`, error);
       movementMonitor.logUpdate(performance.now() - updateStartTime, false);
     }
-  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus, movementSpeedModifier, isOnSeaTile, syncEngineMovementState]);
-
-  useEffect(() => {
-    syncEngineMovementState();
-  }, [syncEngineMovementState]);
+  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus, movementSpeedModifier, isOnSeaTile]);
 
   /**
    * Deterministic step: advance prediction by fixed dt (ms).

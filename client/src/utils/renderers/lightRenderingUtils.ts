@@ -132,6 +132,48 @@ export const FURNACE_LIGHT_OUTER_COLOR = 'rgba(255, 120, 40, 0.0)'; // Bright or
 export const BARBECUE_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE; // Same as campfire
 export const FLARE_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 1.2; // Ground flare - slightly larger than torch
 export const BARBECUE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT; // Same flicker as campfire
+
+const FLICKER_TIME_SCALE_MS = 1000;
+
+interface StableLightFlickerSample {
+    baseFlicker: number;
+    offsetX: number;
+    offsetY: number;
+}
+
+function hashLightSeed(x: number, y: number, salt: number): number {
+    const value = Math.sin(x * 12.9898 + y * 78.233 + salt * 37.719) * 43758.5453123;
+    return value - Math.floor(value);
+}
+
+export function sampleStableLightFlicker(
+    anchorX: number,
+    anchorY: number,
+    flickerAmount: number,
+    offsetScaleX: number,
+    offsetScaleY: number,
+    tempoMultiplier: number
+): StableLightFlickerSample {
+    if (flickerAmount <= 0) {
+        return { baseFlicker: 0, offsetX: 0, offsetY: 0 };
+    }
+
+    const time = performance.now() / FLICKER_TIME_SCALE_MS;
+    const phaseA = hashLightSeed(anchorX, anchorY, 1) * Math.PI * 2;
+    const phaseB = hashLightSeed(anchorX, anchorY, 2) * Math.PI * 2;
+    const phaseC = hashLightSeed(anchorX, anchorY, 3) * Math.PI * 2;
+
+    const primary = Math.sin(time * (2.7 * tempoMultiplier) + phaseA);
+    const secondary = Math.sin(time * (4.9 * tempoMultiplier) + phaseB) * 0.45;
+    const tertiary = Math.sin(time * (7.3 * tempoMultiplier) + phaseC) * 0.2;
+    const normalized = primary * 0.7 + secondary + tertiary;
+
+    return {
+        baseFlicker: normalized * flickerAmount,
+        offsetX: normalized * flickerAmount * offsetScaleX,
+        offsetY: Math.sin(time * (3.8 * tempoMultiplier) + phaseB) * flickerAmount * offsetScaleY,
+    };
+}
 export const BARBECUE_LIGHT_INNER_COLOR = CAMPFIRE_LIGHT_INNER_COLOR; // Same colors as campfire
 export const BARBECUE_LIGHT_OUTER_COLOR = CAMPFIRE_LIGHT_OUTER_COLOR; // Same colors as campfire
 
@@ -151,17 +193,14 @@ function renderWoodFireLight(
 
     const lightScreenX = worldX + cameraOffsetX;
     const lightScreenY = visualCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * flickerAmount;
-
-    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.6;
-    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.4;
-    const rusticX = lightScreenX + asymmetryX;
-    const rusticY = lightScreenY + asymmetryY;
+    const flicker = sampleStableLightFlicker(worldX, visualCenterY, flickerAmount, 0.6, 0.4, 1.15);
+    const rusticX = lightScreenX + flicker.offsetX;
+    const rusticY = lightScreenY + flicker.offsetY;
 
     const SCALE = 1.5;
 
     // Layer 1: Large ambient glow (wood-burning - deep oranges and reds)
-    const ambientRadius = Math.max(0, radiusBase * 3.9 * SCALE + baseFlicker * 0.3);
+    const ambientRadius = Math.max(0, radiusBase * 3.9 * SCALE + flicker.baseFlicker * 0.3);
     const ambientGradient = ctx.createRadialGradient(rusticX, rusticY, 0, rusticX, rusticY, ambientRadius);
     ambientGradient.addColorStop(0, 'rgba(220, 70, 20, 0.04)');
     ambientGradient.addColorStop(0.25, 'rgba(180, 55, 15, 0.025)');
@@ -173,7 +212,7 @@ function renderWoodFireLight(
     ctx.fill();
 
     // Layer 2: Main illumination (authentic wood fire colors)
-    const mainRadius = Math.max(0, radiusBase * 2.6 * SCALE + baseFlicker * 1.0);
+    const mainRadius = Math.max(0, radiusBase * 2.6 * SCALE + flicker.baseFlicker * 1.0);
     const mainGradient = ctx.createRadialGradient(rusticX, rusticY, 0, rusticX, rusticY, mainRadius);
     mainGradient.addColorStop(0, 'rgba(230, 120, 50, 0.18)');
     mainGradient.addColorStop(0.15, 'rgba(210, 90, 25, 0.15)');
@@ -187,7 +226,7 @@ function renderWoodFireLight(
     ctx.fill();
 
     // Layer 3: Core bright light (intense flame center)
-    const coreRadius = Math.max(0, radiusBase * 0.65 * SCALE + baseFlicker * 1.5);
+    const coreRadius = Math.max(0, radiusBase * 0.65 * SCALE + flicker.baseFlicker * 1.5);
     const coreGradient = ctx.createRadialGradient(rusticX, rusticY, 0, rusticX, rusticY, coreRadius);
     coreGradient.addColorStop(0, 'rgba(240, 160, 90, 0.26)');
     coreGradient.addColorStop(0.3, 'rgba(220, 110, 35, 0.18)');
@@ -262,14 +301,11 @@ function renderPortableFireLight(
 
     const lightScreenX = lightCenterX + cameraOffsetX;
     const lightScreenY = lightCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * flickerAmount;
+    const flicker = sampleStableLightFlicker(lightCenterX, lightCenterY, flickerAmount, 0.3, 0.2, 1.05);
+    const rustixLightX = lightScreenX + flicker.offsetX;
+    const rustixLightY = lightScreenY + flicker.offsetY;
 
-    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.3;
-    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.2;
-    const rustixLightX = lightScreenX + asymmetryX;
-    const rustixLightY = lightScreenY + asymmetryY;
-
-    const ambientRadius = Math.max(0, radiusBase * 2.8 + baseFlicker * 0.4);
+    const ambientRadius = Math.max(0, radiusBase * 2.8 + flicker.baseFlicker * 0.4);
     const amb = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, ambientRadius,
         [[0, 'rgba(240, 160, 80, 0.04)'], [0.3, 'rgba(220, 130, 60, 0.025)'], [1, 'rgba(200, 100, 40, 0)']],
         4, `${cacheKeyPrefix}_amb`);
@@ -278,7 +314,7 @@ function renderPortableFireLight(
     ctx.arc(amb.x, amb.y, amb.r, 0, Math.PI * 2);
     ctx.fill();
 
-    const mainRadius = Math.max(0, radiusBase * 1.8 + baseFlicker * 0.8);
+    const mainRadius = Math.max(0, radiusBase * 1.8 + flicker.baseFlicker * 0.8);
     const main = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, mainRadius,
         [[0, 'rgba(240, 200, 120, 0.16)'], [0.2, 'rgba(230, 170, 90, 0.13)'], [0.5, 'rgba(220, 140, 70, 0.08)'], [0.8, 'rgba(210, 120, 50, 0.04)'], [1, 'rgba(190, 100, 40, 0)']],
         4, `${cacheKeyPrefix}_main`);
@@ -287,7 +323,7 @@ function renderPortableFireLight(
     ctx.arc(main.x, main.y, main.r, 0, Math.PI * 2);
     ctx.fill();
 
-    const coreRadius = Math.max(0, radiusBase * 0.5 + baseFlicker * 1.2);
+    const coreRadius = Math.max(0, radiusBase * 0.5 + flicker.baseFlicker * 1.2);
     const core = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, coreRadius,
         [[0, 'rgba(245, 220, 160, 0.24)'], [0.4, 'rgba(235, 190, 110, 0.16)'], [1, 'rgba(220, 150, 80, 0)']],
         4, `${cacheKeyPrefix}_core`);
@@ -595,13 +631,9 @@ export const renderLanternLight = ({
     
     const lightScreenX = visualCenterX + cameraOffsetX;
     const lightScreenY = visualCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * LANTERN_FLICKER_AMOUNT;
-
-    // Add subtle asymmetry for lantern flame effect (much less than campfire)
-    const lanternAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.2;
-    const lanternAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.1;
-    const steadyLanternX = lightScreenX + lanternAsymmetryX;
-    const steadyLanternY = lightScreenY + lanternAsymmetryY;
+    const flicker = sampleStableLightFlicker(visualCenterX, visualCenterY, LANTERN_FLICKER_AMOUNT, 0.2, 0.1, 0.85);
+    const steadyLanternX = lightScreenX + flicker.offsetX;
+    const steadyLanternY = lightScreenY + flicker.offsetY;
 
     if (isWard) {
         // === AAA PIXEL ART WARD LIGHTING ===
@@ -609,7 +641,7 @@ export const renderLanternLight = ({
         // Larger, more dramatic than regular lanterns
         
         const WARD_LIGHT_SCALE = 2.5; // Larger scale for ward mystical aura
-        const wardFlicker = baseFlicker * 0.3; // Very subtle flicker for mystical feel
+        const wardFlicker = flicker.baseFlicker * 0.3; // Very subtle flicker for mystical feel
         
         // Layer 1: Very large ambient glow (ethereal outer aura)
         const outerAuraRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 4.5 * WARD_LIGHT_SCALE + wardFlicker * 0.1);
@@ -686,7 +718,7 @@ export const renderLanternLight = ({
         const LANTERN_SCALE = 1.0; // Focused spot lighting, smaller coverage than campfire
 
         // Layer 1: Large ambient glow (tallow through glass - warm amber, extended reach)
-        const ambientRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 3.5 * LANTERN_SCALE + baseFlicker * 0.1);
+        const ambientRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 3.5 * LANTERN_SCALE + flicker.baseFlicker * 0.1);
         const ambientGradient = ctx.createRadialGradient(
             steadyLanternX, steadyLanternY, 0,
             steadyLanternX, steadyLanternY, ambientRadius
@@ -705,7 +737,7 @@ export const renderLanternLight = ({
         ctx.fill();
 
         // Layer 2: Main illumination (tallow flame through glass with smooth transitions)
-        const mainRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 2.2 * LANTERN_SCALE + baseFlicker * 0.3);
+        const mainRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 2.2 * LANTERN_SCALE + flicker.baseFlicker * 0.3);
         const mainGradient = ctx.createRadialGradient(
             steadyLanternX, steadyLanternY, 0,
             steadyLanternX, steadyLanternY, mainRadius
@@ -725,7 +757,7 @@ export const renderLanternLight = ({
         ctx.fill();
 
         // Layer 3: Core bright light (tallow flame center through glass with reduced glare) 
-        const coreRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 0.9 * LANTERN_SCALE + baseFlicker * 0.8);
+        const coreRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 0.9 * LANTERN_SCALE + flicker.baseFlicker * 0.8);
         const coreGradient = ctx.createRadialGradient(
             steadyLanternX, steadyLanternY, 0,
             steadyLanternX, steadyLanternY, coreRadius
@@ -769,12 +801,11 @@ function renderSteadyPointLight(
 ): void {
     const lightScreenX = lightCenterX + cameraOffsetX;
     const lightScreenY = lightCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * flickerAmount;
+    const flicker = sampleStableLightFlicker(lightCenterX, lightCenterY, flickerAmount, 0.2, 0.1, 0.6);
+    const lampX = lightScreenX + flicker.offsetX;
+    const lampY = lightScreenY + flicker.offsetY;
 
-    const lampX = lightScreenX + (Math.random() - 0.5) * baseFlicker * 0.2;
-    const lampY = lightScreenY + (Math.random() - 0.5) * baseFlicker * 0.1;
-
-    const ambientRadius = Math.max(0, radiusBase * 3.5 * scale + baseFlicker * 0.1);
+    const ambientRadius = Math.max(0, radiusBase * 3.5 * scale + flicker.baseFlicker * 0.1);
     const ambientGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, ambientRadius);
     ambientStops.forEach(([pos, color]) => ambientGradient.addColorStop(pos, color));
     ctx.fillStyle = ambientGradient;
@@ -782,7 +813,7 @@ function renderSteadyPointLight(
     ctx.arc(lampX, lampY, ambientRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    const mainRadius = Math.max(0, radiusBase * 2.2 * scale + baseFlicker * 0.3);
+    const mainRadius = Math.max(0, radiusBase * 2.2 * scale + flicker.baseFlicker * 0.3);
     const mainGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, mainRadius);
     mainStops.forEach(([pos, color]) => mainGradient.addColorStop(pos, color));
     ctx.fillStyle = mainGradient;
@@ -790,7 +821,7 @@ function renderSteadyPointLight(
     ctx.arc(lampX, lampY, mainRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    const coreRadius = Math.max(0, radiusBase * 0.9 * scale + baseFlicker * 0.8);
+    const coreRadius = Math.max(0, radiusBase * 0.9 * scale + flicker.baseFlicker * 0.8);
     const coreGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, coreRadius);
     coreStops.forEach(([pos, color]) => coreGradient.addColorStop(pos, color));
     ctx.fillStyle = coreGradient;
@@ -928,13 +959,9 @@ export const renderFurnaceLight = ({
     
     const lightScreenX = visualCenterX + cameraOffsetX;
     const lightScreenY = visualCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * FURNACE_FLICKER_AMOUNT;
-
-    // Add industrial asymmetry for furnace forge effect
-    const furnaceAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.4;
-    const furnaceAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.3;
-    const industrialFurnaceX = lightScreenX + furnaceAsymmetryX;
-    const industrialFurnaceY = lightScreenY + furnaceAsymmetryY;
+    const flicker = sampleStableLightFlicker(visualCenterX, visualCenterY, FURNACE_FLICKER_AMOUNT, 0.4, 0.3, 0.95);
+    const industrialFurnaceX = lightScreenX + flicker.offsetX;
+    const industrialFurnaceY = lightScreenY + flicker.offsetY;
 
     // INDUSTRIAL FURNACE LIGHTING SYSTEM - realistic high-temperature metal smelting
     // Compound monument large furnaces (480px) cast more light than regular furnaces
@@ -943,7 +970,7 @@ export const renderFurnaceLight = ({
     const FURNACE_SCALE = isLargeFurnace ? (isCompoundFurnace ? 2.0 : 1.5) : 1.0;
 
     // Layer 1: Large ambient glow (hot furnace - bright orange ambient heat)
-    const ambientRadius = Math.max(0, FURNACE_LIGHT_RADIUS_BASE * 3.5 * FURNACE_SCALE + baseFlicker * 0.3);
+    const ambientRadius = Math.max(0, FURNACE_LIGHT_RADIUS_BASE * 3.5 * FURNACE_SCALE + flicker.baseFlicker * 0.3);
     const ambientGradient = ctx.createRadialGradient(
         industrialFurnaceX, industrialFurnaceY, 0,
         industrialFurnaceX, industrialFurnaceY, ambientRadius
@@ -961,7 +988,7 @@ export const renderFurnaceLight = ({
     ctx.fill();
 
     // Layer 2: Main illumination (bright yellow-orange furnace heat)
-    const mainRadius = Math.max(0, FURNACE_LIGHT_RADIUS_BASE * 2.4 * FURNACE_SCALE + baseFlicker * 0.8);
+    const mainRadius = Math.max(0, FURNACE_LIGHT_RADIUS_BASE * 2.4 * FURNACE_SCALE + flicker.baseFlicker * 0.8);
     const mainGradient = ctx.createRadialGradient(
         industrialFurnaceX, industrialFurnaceY, 0,
         industrialFurnaceX, industrialFurnaceY, mainRadius
@@ -1134,19 +1161,15 @@ export const renderFishingVillageCampfireLight = ({
     const lightScreenX = worldX + cameraOffsetX;
     // Apply Y offset to center light on the firepit in the image
     const lightScreenY = worldY + cameraOffsetY + FV_CAMPFIRE_Y_OFFSET;
-    const baseFlicker = (Math.random() - 0.5) * 2 * FV_CAMPFIRE_FLICKER_AMOUNT;
-
-    // Add more pronounced asymmetry for crackling communal campfire effect
-    const campfireAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.5;
-    const campfireAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.4;
-    const rusticCampfireX = lightScreenX + campfireAsymmetryX;
-    const rusticCampfireY = lightScreenY + campfireAsymmetryY;
+    const flicker = sampleStableLightFlicker(worldX, worldY + FV_CAMPFIRE_Y_OFFSET, FV_CAMPFIRE_FLICKER_AMOUNT, 0.5, 0.4, 0.9);
+    const rusticCampfireX = lightScreenX + flicker.offsetX;
+    const rusticCampfireY = lightScreenY + flicker.offsetY;
 
     // FISHING VILLAGE CAMPFIRE LIGHTING SYSTEM - Warm, inviting communal fire
     const FV_SCALE = 2.0; // Communal fire atmosphere
 
     // Layer 1: Large ambient glow (wood-burning communal fire - deep warm oranges)
-    const ambientRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 3.5 * FV_SCALE + baseFlicker * 0.3);
+    const ambientRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 3.5 * FV_SCALE + flicker.baseFlicker * 0.3);
     const ambientGradient = ctx.createRadialGradient(
         rusticCampfireX, rusticCampfireY, 0,
         rusticCampfireX, rusticCampfireY, ambientRadius
@@ -1162,7 +1185,7 @@ export const renderFishingVillageCampfireLight = ({
     ctx.fill();
 
     // Layer 2: Main illumination (authentic communal fire warmth)
-    const mainRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 2.4 * FV_SCALE + baseFlicker * 0.8);
+    const mainRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 2.4 * FV_SCALE + flicker.baseFlicker * 0.8);
     const mainGradient = ctx.createRadialGradient(
         rusticCampfireX, rusticCampfireY, 0,
         rusticCampfireX, rusticCampfireY, mainRadius
@@ -1180,7 +1203,7 @@ export const renderFishingVillageCampfireLight = ({
     ctx.fill();
 
     // Layer 3: Core bright light (intense communal fire heart) 
-    const coreRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 0.6 * FV_SCALE + baseFlicker * 1.2);
+    const coreRadius = Math.max(0, FV_CAMPFIRE_LIGHT_RADIUS_BASE * 0.6 * FV_SCALE + flicker.baseFlicker * 1.2);
     const coreGradient = ctx.createRadialGradient(
         rusticCampfireX, rusticCampfireY, 0,
         rusticCampfireX, rusticCampfireY, coreRadius

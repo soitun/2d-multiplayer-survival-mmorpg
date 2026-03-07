@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
     DroppedItem as SpacetimeDBDroppedItem,
     Campfire as SpacetimeDBCampfire,
@@ -15,7 +15,7 @@ import {
     RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts
     Barrel as SpacetimeDBBarrel, // ADDED: Barrels (buoys for night light cutouts)
 } from '../generated/types';
-import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE, FLARE_LIGHT_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
+import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE, FLARE_LIGHT_RADIUS_BASE, sampleStableLightFlicker } from '../utils/renderers/lightRenderingUtils';
 import { ROAD_LAMP_LIGHT_RADIUS_BASE, ROAD_LAMP_LIGHT_Y_OFFSET } from '../utils/renderers/roadLamppostRenderingUtils';
 import { BUOY_HEIGHT } from '../utils/renderers/barrelRenderingUtils';
 import { BUOY_LIGHT_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
@@ -454,6 +454,15 @@ interface UseDayNightCycleProps {
 interface UseDayNightCycleResult {
     overlayRgba: string;
     maskCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+    redrawMask: (frameOverrides?: DayNightMaskFrameOverrides) => void;
+}
+
+interface DayNightMaskFrameOverrides {
+    cameraOffsetX?: number;
+    cameraOffsetY?: number;
+    predictedPosition?: { x: number; y: number } | null;
+    worldMouseX?: number | null;
+    worldMouseY?: number | null;
 }
 
 export function useDayNightCycle({
@@ -472,15 +481,15 @@ export function useDayNightCycle({
     players,
     activeEquipments,
     itemDefinitions,
-    cameraOffsetX,
-    cameraOffsetY,
+    cameraOffsetX: initialCameraOffsetX,
+    cameraOffsetY: initialCameraOffsetY,
     canvasSize,
     localPlayerId,
-    predictedPosition,
+    predictedPosition: initialPredictedPosition,
     remotePlayerInterpolation,
     buildingClusters, // Indoor light containment
-    worldMouseX, // Mouse position for local player's flashlight
-    worldMouseY,
+    worldMouseX: initialWorldMouseX, // Mouse position for local player's flashlight
+    worldMouseY: initialWorldMouseY,
 }: UseDayNightCycleProps): UseDayNightCycleResult {
     const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const [overlayRgba, setOverlayRgba] = useState<string>('transparent');
@@ -523,7 +532,13 @@ export function useDayNightCycle({
     }, [lanterns]);
     // --- End lantern derived state ---
 
-    useEffect(() => {
+    const redrawMask = useCallback((frameOverrides: DayNightMaskFrameOverrides = {}) => {
+        const cameraOffsetX = frameOverrides.cameraOffsetX ?? initialCameraOffsetX;
+        const cameraOffsetY = frameOverrides.cameraOffsetY ?? initialCameraOffsetY;
+        const predictedPosition = frameOverrides.predictedPosition ?? initialPredictedPosition;
+        const worldMouseX = frameOverrides.worldMouseX ?? initialWorldMouseX;
+        const worldMouseY = frameOverrides.worldMouseY ?? initialWorldMouseY;
+
         if (!maskCanvasRef.current) {
             maskCanvasRef.current = document.createElement('canvas');
         }
@@ -535,10 +550,19 @@ export function useDayNightCycle({
             return;
         }
 
-        // cameraOffset, predictedPosition, remotePlayerInterpolation, worldMouse are in deps
-        // so player-held lights (torch, headlamp, flashlight) follow the player during movement.
-        maskCanvas.width = canvasSize.width;
-        maskCanvas.height = canvasSize.height;
+        // Avoid resizing the offscreen canvas every frame. Width/height assignment
+        // reallocates the backing store and causes visible hitches once mask redraws
+        // moved onto the render loop.
+        if (maskCanvas.width !== canvasSize.width) {
+            maskCanvas.width = canvasSize.width;
+        }
+        if (maskCanvas.height !== canvasSize.height) {
+            maskCanvas.height = canvasSize.height;
+        }
+
+        maskCtx.setTransform(1, 0, 0, 1, 0, 0);
+        maskCtx.globalCompositeOperation = 'source-over';
+        maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
 
         const currentCycleProgress = worldState?.cycleProgress;
         let calculatedOverlayString; 
@@ -673,8 +697,8 @@ export function useDayNightCycle({
                 // LARGE VILLAGE CAMPFIRE - bigger and warmer than regular campfires
                 // Creates a cozy, safe atmosphere in the village
                 const VILLAGE_CAMPFIRE_RADIUS = CAMPFIRE_LIGHT_RADIUS_BASE * 3.0; // Communal fire light
-                const flicker = (Math.random() - 0.5) * 2 * CAMPFIRE_FLICKER_AMOUNT * 0.8; // Slightly more stable
-                const lightRadius = Math.max(0, VILLAGE_CAMPFIRE_RADIUS + flicker);
+                const flicker = sampleStableLightFlicker(part.worldX, part.worldY + VILLAGE_CAMPFIRE_Y_OFFSET, CAMPFIRE_FLICKER_AMOUNT * 0.8, 0, 0, 0.9);
+                const lightRadius = Math.max(0, VILLAGE_CAMPFIRE_RADIUS + flicker.baseFlicker);
                 
                 // No building clusters for outdoor village campfire
                 renderClippedLightCutout(
@@ -726,8 +750,8 @@ export function useDayNightCycle({
                     
                     // Wards have larger, more dramatic cutouts with ethereal quality
                     const WARD_CUTOUT_RADIUS = 280; // Larger base radius for ward mystical aura
-                    const flicker = (Math.random() - 0.5) * 2 * (LANTERN_FLICKER_AMOUNT * 0.5); // Subtle flicker
-                    const lightRadius = Math.max(0, WARD_CUTOUT_RADIUS + flicker);
+                    const flicker = sampleStableLightFlicker(lantern.posX, visualCenterWorldY, LANTERN_FLICKER_AMOUNT * 0.5, 0, 0, 0.85);
+                    const lightRadius = Math.max(0, WARD_CUTOUT_RADIUS + flicker.baseFlicker);
                     
                     // Apply clip if inside a building
                     if (enclosingCluster) {
@@ -793,8 +817,8 @@ export function useDayNightCycle({
                     }
                 } else {
                     // Regular lantern - standard cutout
-                    const flicker = (Math.random() - 0.5) * 2 * LANTERN_FLICKER_AMOUNT;
-                    const lightRadius = Math.max(0, (LANTERN_LIGHT_RADIUS_BASE * 1.8) + flicker);
+                    const flicker = sampleStableLightFlicker(lantern.posX, visualCenterWorldY, LANTERN_FLICKER_AMOUNT, 0, 0, 0.85);
+                    const lightRadius = Math.max(0, (LANTERN_LIGHT_RADIUS_BASE * 1.8) + flicker.baseFlicker);
                     
                     renderClippedLightCutout(
                         maskCtx,
@@ -1029,8 +1053,8 @@ export function useDayNightCycle({
                 const lightScreenY = renderPositionY + cameraOffsetY;
 
                 // TORCH CUTOUT - 1.25x larger inner bright area with natural rustic gradient
-                const flicker = (Math.random() - 0.5) * 2 * TORCH_FLICKER_AMOUNT;
-                const currentLightRadius = Math.max(0, (TORCH_LIGHT_RADIUS_BASE * 1.25) + flicker);
+                const flicker = sampleStableLightFlicker(renderPositionX, renderPositionY, TORCH_FLICKER_AMOUNT, 0, 0, 1.05);
+                const currentLightRadius = Math.max(0, (TORCH_LIGHT_RADIUS_BASE * 1.25) + flicker.baseFlicker);
 
                 // Use clipped rendering if inside a building
                 renderClippedLightCutout(
@@ -1081,8 +1105,8 @@ export function useDayNightCycle({
             const lightScreenY = renderPositionY + cameraOffsetY;
 
             // Headlamp cutout - same style as torch, scaled up (2x torch radius)
-            const flicker = (Math.random() - 0.5) * 2 * HEADLAMP_FLICKER_AMOUNT;
-            const currentLightRadius = Math.max(0, (HEADLAMP_LIGHT_RADIUS_BASE * 1.25) + flicker);
+            const flicker = sampleStableLightFlicker(renderPositionX, renderPositionY, HEADLAMP_FLICKER_AMOUNT, 0, 0, 1.05);
+            const currentLightRadius = Math.max(0, (HEADLAMP_LIGHT_RADIUS_BASE * 1.25) + flicker.baseFlicker);
 
             // Use clipped rendering if inside a building
             renderClippedLightCutout(
@@ -1575,12 +1599,11 @@ export function useDayNightCycle({
         }
         
         maskCtx.globalCompositeOperation = 'source-over';
+    }, [worldState, droppedItems, campfires, lanterns, furnaces, barbecues, roadLampposts, barrels, runeStones, firePatches, fumaroles, monumentParts, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters, initialCameraOffsetX, initialCameraOffsetY, initialPredictedPosition, remotePlayerInterpolation, initialWorldMouseX, initialWorldMouseY]);
 
-    // cameraOffset and predictedPosition MUST be in deps - player-held lights (torch, headlamp, flashlight)
-    // need to follow the player. Without these, the mask uses stale positions and lights lag behind
-    // during fast movement or dodge rolls.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [worldState, droppedItems, campfires, lanterns, furnaces, barbecues, roadLampposts, runeStones, firePatches, fumaroles, monumentParts, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters, cameraOffsetX, cameraOffsetY, predictedPosition, remotePlayerInterpolation, worldMouseX, worldMouseY]);
+    useEffect(() => {
+        redrawMask();
+    }, [redrawMask]);
 
-    return { overlayRgba, maskCanvasRef };
+    return { overlayRgba, maskCanvasRef, redrawMask };
 } 

@@ -75,7 +75,6 @@ import {
 } from '../utils/typeGuards';
 import { wasAlkPanelJustClosed } from '../components/AlkDeliveryPanel';
 import { CAIRN_LORE_TIDBITS, CairnLoreEntry } from '../data/cairnLoreData';
-import { playImmediateSound } from './useSoundSystem';
 import { Cairn as SpacetimeDBCairn } from '../generated/types';
 import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount, stopCairnLoreAudio } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
@@ -583,52 +582,6 @@ export const useInputHandler = ({
             return changed ? next : prev;
         });
     }, [localPlayerId, optimisticProjectiles.size, serverProjectiles]);
-
-    // FIX: Play cairn_unlock sound only on actual first discovery (after server confirms)
-    // Track which cairns we've already played sound for to prevent duplicates
-    const playedSoundForCairnsRef = useRef<Set<bigint>>(new Set());
-    
-    useEffect(() => {
-        if (!connection) return;
-        
-        const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: PlayerDiscoveredCairn) => {
-            console.log(`[Cairn INPUT HANDLER] Discovery insert received: cairnId=${discovery.cairnId}, playerIdentity=${discovery.playerIdentity?.toHexString()?.slice(0, 16)}..., localPlayerId=${localPlayerId?.slice(0, 16)}...`);
-            
-            // Only play sound if this is our own discovery (check player identity)
-            if (!localPlayerId) {
-                console.log('[Cairn INPUT HANDLER] No localPlayerId, skipping sound');
-                return;
-            }
-            
-            const discoveryPlayerId = discovery.playerIdentity?.toHexString();
-            const currentPlayerId = localPlayerId;
-            
-            console.log(`[Cairn INPUT HANDLER] Comparing identities: discovery=${discoveryPlayerId?.slice(0, 16)}... vs current=${currentPlayerId?.slice(0, 16)}...`);
-            
-            // Check if this discovery is for our player
-            if (discoveryPlayerId === currentPlayerId) {
-                const cairnId = discovery.cairnId;
-                
-                // Only play sound if we haven't already played it for this cairn
-                if (!playedSoundForCairnsRef.current.has(cairnId)) {
-                    console.log(`[Cairn INPUT HANDLER] ✓ First discovery confirmed! Playing cairn_unlock sound for cairn ${cairnId}`);
-                    playImmediateSound('cairn_unlock');
-                    playedSoundForCairnsRef.current.add(cairnId);
-                } else {
-                    console.log(`[Cairn INPUT HANDLER] Sound already played for cairn ${cairnId}`);
-                }
-            } else {
-                console.log('[Cairn INPUT HANDLER] Discovery is for another player, skipping sound');
-            }
-        };
-        
-        // Register callback for PlayerDiscoveredCairn inserts
-        connection.db.player_discovered_cairn.onInsert(handlePlayerDiscoveredCairnInsert);
-        
-        return () => {
-            connection.db.player_discovered_cairn.removeOnInsert(handlePlayerDiscoveredCairnInsert);
-        };
-    }, [connection, localPlayerId]);
 
     // ADDED: Clear radial menu state when building mode ends (switching tools)
     useEffect(() => {

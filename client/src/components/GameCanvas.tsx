@@ -1172,7 +1172,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // --- Day/Night Cycle with Indoor Light Containment ---
   // Must be after useEntityFiltering since it uses buildingClusters
-  const { overlayRgba, maskCanvasRef } = useDayNightCycle({
+  const { overlayRgba, maskCanvasRef, redrawMask } = useDayNightCycle({
     worldState,
     droppedItems: visibleDroppedItemsMap,
     campfires,
@@ -3412,6 +3412,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- Post-Processing (Day/Night, Indicators, Lights, Minimap) ---
     // Day/Night mask overlay
     if (overlayRgba !== 'transparent' && overlayRgba !== 'rgba(0,0,0,0.00)' && maskCanvas) {
+      redrawMask({
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
+        predictedPosition: currentPredictedPosition,
+        worldMouseX: currentWorldMouseX,
+        worldMouseY: currentWorldMouseY,
+      });
       ctx.drawImage(maskCanvas, 0, 0);
     }
 
@@ -3816,7 +3823,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     worldState, localPlayerId, localPlayer, activeEquipments, localPlayerPin, viewCenterOffset,
     itemImagesRef, heroImageRef, heroSprintImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, cloudImagesRef,
     canvasSize.width, canvasSize.height,
-    placementInfo, placementError, overlayRgba, maskCanvasRef,
+    placementInfo, placementError, overlayRgba, maskCanvasRef, redrawMask,
     // Phase 4b: messages, projectiles, holdInteractionProgress, closestInteractable* moved to renderGameDepsRef
     hoveredPlayerIds, handlePlayerHover,
     isMinimapOpen, isMouseOverMinimap, minimapZoom,
@@ -3860,6 +3867,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         // even when React props update at lower frequency.
         const livePredictedPosition = getCurrentPositionNow?.() ?? predictedPositionRef.current;
         const liveFacingDirection = getCurrentFacingDirectionNow?.() ?? localFacingDirectionRef.current;
+        runtimeEngine.setPredictedPosition(livePredictedPosition ?? null);
+        runtimeEngine.updateInputState('isAutoWalking', isAutoWalking);
         if (livePredictedPosition) {
           predictedPositionRef.current = livePredictedPosition;
           cameraOffsetRef.current = {
@@ -3874,6 +3883,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
         if (liveFacingDirection) {
           localFacingDirectionRef.current = liveFacingDirection;
+          runtimeEngine.updateWorldState('facingDirection', liveFacingDirection);
         }
       },
       processInputs: processInputsAndActions,
@@ -3906,6 +3916,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     getCurrentFacingDirectionNow,
     localPlayer,
     updateInteractionResult,
+    isAutoWalking,
     canvasSize.width,
     canvasSize.height,
     isMinimapOpen,

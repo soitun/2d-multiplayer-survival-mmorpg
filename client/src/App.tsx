@@ -70,8 +70,6 @@ import './App.css';
 // Auto-close interaction when player moves too far from container
 import { useInteractionAutoClose } from './hooks/useInteractionAutoClose';
 
-// Import the cut grass effect system
-import { initCutGrassEffectSystem, cleanupCutGrassEffectSystem } from './effects/cutGrassEffect';
 import { filterVisibleEntities, filterVisibleTrees } from './utils/entityFilteringUtils';
 import { resetBrothEffectsState } from './utils/renderers/brothEffectsOverlayUtils';
 import { resetInsanityState } from './utils/renderers/insanityOverlayUtils';
@@ -128,7 +126,7 @@ function AppContent() {
         registerPlayer,
         retryConnection,
     } = useGameConnection();
-    useRuntimeBootstrap(connection);
+    useRuntimeBootstrap(connection, dbIdentity ? dbIdentity.toHexString() : null);
     useRuntimeConnectionBridge({
         connection,
         identityHex: dbIdentity ? dbIdentity.toHexString() : null,
@@ -627,17 +625,6 @@ function AppContent() {
     useEffect(() => {
         placementInfoRef.current = placementInfo;
     }, [placementInfo]);
-
-    // --- Effect to initialize and cleanup cut grass effect system ---
-    useEffect(() => {
-        if (connection && localPlayerRegistered) {
-            initCutGrassEffectSystem(connection);
-
-            return () => {
-                cleanupCutGrassEffectSystem();
-            };
-        }
-    }, [connection, localPlayerRegistered]);
 
     // --- Action Handlers will be defined after loggedInPlayer is available ---
 
