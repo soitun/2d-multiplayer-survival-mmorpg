@@ -55,7 +55,7 @@
     "scytheMeleeArcDegrees": 150.0
   },
   "dayNight": {
-    "dayDurationSeconds": 1200.0,
+    "dayDurationSeconds": 2400.0,
     "nightDurationSeconds": 600.0,
     "fullMoonCycleInterval": 3,
     "dawnEndProgress": 0.05,

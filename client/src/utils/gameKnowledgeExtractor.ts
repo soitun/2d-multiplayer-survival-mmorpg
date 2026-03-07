@@ -605,7 +605,7 @@ const tipSectionDefinitions = {
         title: '🌅 Day/Night Cycle',
         tips: [
             // Time Periods
-            'The game has a 25-minute day/night cycle: 20 minutes of daytime, 5 minutes of nighttime.',
+            'The game has a 50-minute day/night cycle: 40 minutes of daytime, 10 minutes of nighttime.',
             'Time periods: Dawn → Morning → Noon → Afternoon → Dusk → Twilight Evening → Night → Midnight → Twilight Morning.',
             'Dawn and Dusk are brief transition periods with orange lighting.',
             'Twilight periods (morning and evening) have purple hues and reduced visibility.',

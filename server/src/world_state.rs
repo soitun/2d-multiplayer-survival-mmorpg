@@ -1176,7 +1176,7 @@ pub fn tick_world_state(ctx: &ReducerContext, _timestamp: Timestamp) -> Result<(
         }
 
         // Determine the new TimeOfDay based on shared progress thresholds.
-        // The current shared cadence is 20 minutes of day and 10 minutes of night.
+        // The current shared cadence is 40 minutes of day and 10 minutes of night.
         // Correct cycle order: Night -> Midnight -> TwilightMorning -> Dawn -> Morning -> Noon -> Afternoon -> Dusk -> TwilightEvening -> Night
         // Ranges: Night -> Midnight -> TwilightMorning -> Dawn -> Morning -> Noon -> Afternoon -> Dusk -> TwilightEvening -> Night
         let new_time_of_day = match new_progress {

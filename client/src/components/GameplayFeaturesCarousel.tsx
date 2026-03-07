@@ -39,7 +39,7 @@ const carouselItems: CarouselItem[] = [
     },
     {
         title: "Survive the Night",
-        description: "Days last 20 minutes, time to farm, trade, and prepare. But when the 10-minute night falls, memory apparitions emerge from the darkness. These corrupted echoes of something ancient hunt the living. Work together, build defenses, and keep your weapons ready.",
+        description: "Days last 40 minutes, giving you more time to farm, trade, and prepare. But when the 10-minute night falls, memory apparitions emerge from the darkness. These corrupted echoes of something ancient hunt the living. Work together, build defenses, and keep your weapons ready.",
         icon: faMoon,
     },
     {
