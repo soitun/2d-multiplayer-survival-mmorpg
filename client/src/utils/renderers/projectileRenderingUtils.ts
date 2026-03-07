@@ -32,7 +32,9 @@ const clientProjectileStartTimes = new Map<string, number>(); // projectileId ->
 const clientProjectileInitialElapsedMs = new Map<string, number>(); // projectileId -> clamped estimated elapsed at first sight
 const projectileMissingSince = new Map<string, number>(); // projectileId -> first timestamp seen missing from current set
 const projectileRenderCountsByFrame = new Map<string, number>();
+const projectileDrawnKeysThisPass = new Set<string>();
 let lastProjectileRenderFrameBucket = -1;
+let activeProjectileRenderPassToken = -1;
 
 /** Collision circle for client-side projectile hit prediction (matches server radii) */
 export interface ProjectileCollisionCircle {
@@ -50,6 +52,7 @@ const ANIMAL_R = 32;
 const BARREL_R = 28; const BARREL_Y = 10;
 const PLAYER_R = 48;
 const BOX_R = 28; const BOX_Y = 5;
+const BOX_TYPE_BACKPACK = 4;
 const CAMPFIRE_R = 32; const CAMPFIRE_Y = -5;
 const STASH_R = 25;
 const SLEEPING_BAG_R = 28;
@@ -103,6 +106,12 @@ export function getProjectileTrackingKey(projectile: SpacetimeDBProjectile): str
   return clientShotId.length > 0 ? clientShotId : projectile.id.toString();
 }
 
+export function beginProjectileRenderPass(passToken: number): void {
+  if (activeProjectileRenderPassToken === passToken) return;
+  activeProjectileRenderPassToken = passToken;
+  projectileDrawnKeysThisPass.clear();
+}
+
 function getClientShotTimestampMs(projectile: SpacetimeDBProjectile): number | null {
   const clientShotId = projectile.clientShotId?.trim?.() ?? '';
   if (!clientShotId) return null;
@@ -134,6 +143,16 @@ export const renderProjectile = ({
   const usePrimitiveSpriteFallback = !isNpcOrTurretProjectile && !hasValidSprite;
 
   const projectileId = getProjectileTrackingKey(projectile);
+  if (projectileDrawnKeysThisPass.has(projectileId)) {
+    recordProjectileDebugEvent('render-skip-duplicate-same-pass', {
+      projectileId,
+      sourceType: projectile.sourceType,
+      ownerId: projectile.ownerId?.toHexString?.(),
+      clientShotId: projectile.clientShotId?.trim?.() ?? '',
+    });
+    return;
+  }
+  projectileDrawnKeysThisPass.add(projectileId);
   const frameBucket = Math.floor(currentTimeMs / 16.6667);
   if (frameBucket !== lastProjectileRenderFrameBucket) {
     projectileRenderCountsByFrame.clear();
@@ -659,7 +678,9 @@ export function buildProjectileCollisionCircles(
         });
         break;
       case 'wooden_storage_box':
-        circles.push({ cx: entity.posX, cy: entity.posY + BOX_Y, radius: BOX_R });
+        if (entity.boxType !== BOX_TYPE_BACKPACK) {
+          circles.push({ cx: entity.posX, cy: entity.posY + BOX_Y, radius: BOX_R });
+        }
         break;
       case 'campfire':
         circles.push({ cx: entity.posX, cy: entity.posY + CAMPFIRE_Y, radius: CAMPFIRE_R });

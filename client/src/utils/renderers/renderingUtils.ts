@@ -89,7 +89,7 @@ import { renderShelter } from './shelterRenderingUtils';
 import { renderRainCollector } from './rainCollectorRenderingUtils';
 import { renderWildAnimal, renderTamingThoughtBubbles, renderPregnancyIndicator } from './wildAnimalRenderingUtils';
 import type { CaribouBreedingData, WalrusBreedingData } from '../../generated/types';
-import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
+import { renderAnimalCorpse, renderAnimalCorpseDestructionEffects } from './animalCorpseRenderingUtils';
 import { renderPlayerCorpse, isCorpseHovered } from './playerCorpseRenderingUtils';
 import { renderBarrel, renderBarrelDestructionEffects } from './barrelRenderingUtils';
 import { renderRoadLamppost } from './roadLamppostRenderingUtils';
@@ -1957,6 +1957,7 @@ export const renderYSortedEntities = ({
   renderTreeImpactEffects(ctx, nowMs);     // Twigs, leaves, dirt, dust cloud from falling trees
   renderStoneDestructionEffects(ctx, nowMs); // Rock chunks, sparks, dust cloud from mined stones
   renderBarrelDestructionEffects(ctx, nowMs); // Barrel sprite chunks explode radially
+  renderAnimalCorpseDestructionEffects(ctx, nowMs); // Corpse sprite chunks burst apart when fully harvested
   renderCoralDestructionEffects(ctx, nowMs); // Coral fragments, bubbles, sand cloud from harvested coral
 
   // PASS 2: REMOVED - North walls are now rendered in Pass 1 for correct Y-sorting with players/placeables

@@ -48,6 +48,8 @@ const lastKnownServerAnimalCorpseShakeTimes = new Map<string, number>();
 const SHAKE_DURATION_MS = 200;
 const SHAKE_INTENSITY_PX = 6;
 const CORPSE_SPAWN_FLASH_MS = 140;
+const ANIMAL_CORPSE_DESTRUCTION_DURATION_MS = 1000;
+const ANIMAL_CORPSE_CHUNK_SLICE_LEVELS = 2;
 
 /** Trigger animal corpse shake immediately (optimistic feedback) when player initiates a hit. */
 export function triggerAnimalCorpseShakeOptimistic(corpseId: string): void {
@@ -77,6 +79,165 @@ const speciesSpriteSheets: Record<string, string> = {
     // CableViper uses 4x4 (same as other wildlife)
     'CableViper': cableViperWalkingSheet,
 };
+
+interface AnimalCorpseDestructionChunk {
+  srcX: number;
+  srcY: number;
+  srcW: number;
+  srcH: number;
+  drawW: number;
+  drawH: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  rotation: number;
+  rotationSpeed: number;
+  gravity: number;
+}
+
+interface AnimalCorpseDestructionEffect {
+  corpseId: string;
+  startTime: number;
+  duration: number;
+  chunks: AnimalCorpseDestructionChunk[];
+  spriteSheet: HTMLImageElement;
+}
+
+const activeAnimalCorpseDestructions = new Map<string, AnimalCorpseDestructionEffect>();
+const animalCorpseDestructionsToRemove: string[] = [];
+
+function sliceRectIntoChunks(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  level: number,
+  maxLevel: number,
+  out: Array<{ srcX: number; srcY: number; srcW: number; srcH: number }>
+): void {
+  if (level >= maxLevel || w < 8 || h < 8) {
+    out.push({ srcX: x, srcY: y, srcW: w, srcH: h });
+    return;
+  }
+
+  if (level % 2 === 0) {
+    const mid = Math.floor(h / 2);
+    sliceRectIntoChunks(x, y, w, mid, level + 1, maxLevel, out);
+    sliceRectIntoChunks(x, y + mid, w, h - mid, level + 1, maxLevel, out);
+  } else {
+    const mid = Math.floor(w / 2);
+    sliceRectIntoChunks(x, y, mid, h, level + 1, maxLevel, out);
+    sliceRectIntoChunks(x + mid, y, w - mid, h, level + 1, maxLevel, out);
+  }
+}
+
+function generateAnimalCorpseDestructionChunks(
+  corpse: SpacetimeDBAnimalCorpse,
+  renderWidth: number,
+  renderHeight: number,
+): AnimalCorpseDestructionChunk[] {
+  const srcRects: Array<{ srcX: number; srcY: number; srcW: number; srcH: number }> = [];
+  sliceRectIntoChunks(0, 0, renderWidth, renderHeight, 0, ANIMAL_CORPSE_CHUNK_SLICE_LEVELS, srcRects);
+
+  const sxBase = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
+  const syBase = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
+  const scaleX = FRAME_WIDTH_4X4 / renderWidth;
+  const scaleY = FRAME_HEIGHT_4X4 / renderHeight;
+  const baseSpeed = 3.5 + Math.random() * 3.5;
+  const centerX = corpse.posX;
+  const centerY = corpse.posY;
+
+  return srcRects.map((rect) => {
+    const chunkCenterX = centerX - renderWidth / 2 + rect.srcX + rect.srcW / 2;
+    const chunkCenterY = centerY - renderHeight / 2 + rect.srcY + rect.srcH / 2;
+    const dx = chunkCenterX - centerX;
+    const dy = chunkCenterY - centerY;
+    const angle = Math.atan2(dy, dx);
+    const speed = baseSpeed * (0.75 + Math.random() * 0.55);
+
+    return {
+      srcX: sxBase + rect.srcX * scaleX,
+      srcY: syBase + rect.srcY * scaleY,
+      srcW: rect.srcW * scaleX,
+      srcH: rect.srcH * scaleY,
+      drawW: rect.srcW,
+      drawH: rect.srcH,
+      x: chunkCenterX,
+      y: chunkCenterY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 1.8 - Math.random() * 2.6,
+      rotation: (Math.random() - 0.5) * 0.5,
+      rotationSpeed: (Math.random() - 0.5) * 0.14,
+      gravity: 0.2,
+    };
+  });
+}
+
+export function triggerAnimalCorpseDestructionEffect(corpse: SpacetimeDBAnimalCorpse): void {
+  const corpseId = corpse.id.toString();
+  if (activeAnimalCorpseDestructions.has(corpseId)) return;
+  if (corpse.animalSpecies.tag === 'Bee') return;
+
+  const spriteSheetSrc = getCorpseSpriteSheet(corpse.animalSpecies);
+  const spriteSheet = imageManager.getImage(spriteSheetSrc);
+  if (!spriteSheet || !spriteSheet.complete || spriteSheet.naturalWidth === 0) return;
+
+  const renderSize = getCorpseRenderSize(corpse.animalSpecies);
+  const effect: AnimalCorpseDestructionEffect = {
+    corpseId,
+    startTime: Date.now(),
+    duration: ANIMAL_CORPSE_DESTRUCTION_DURATION_MS,
+    chunks: generateAnimalCorpseDestructionChunks(corpse, renderSize.width, renderSize.height),
+    spriteSheet,
+  };
+
+  activeAnimalCorpseDestructions.set(corpseId, effect);
+}
+
+export function renderAnimalCorpseDestructionEffects(ctx: CanvasRenderingContext2D, nowMs: number): void {
+  if (activeAnimalCorpseDestructions.size === 0) return;
+
+  animalCorpseDestructionsToRemove.length = 0;
+
+  activeAnimalCorpseDestructions.forEach((effect, corpseId) => {
+    const elapsed = nowMs - effect.startTime;
+    const progress = elapsed / effect.duration;
+    if (progress >= 1) {
+      animalCorpseDestructionsToRemove.push(corpseId);
+      return;
+    }
+
+    const fadeStart = 0.45;
+    const alphaMultiplier = progress > fadeStart ? 1 - (progress - fadeStart) / (1 - fadeStart) : 1;
+
+    for (const chunk of effect.chunks) {
+      chunk.vy += chunk.gravity;
+      chunk.x += chunk.vx;
+      chunk.y += chunk.vy;
+      chunk.rotation += chunk.rotationSpeed;
+      chunk.vx *= 0.98;
+
+      if (alphaMultiplier < 0.02) continue;
+
+      ctx.save();
+      ctx.translate(chunk.x, chunk.y);
+      ctx.rotate(chunk.rotation);
+      ctx.scale(1, -1);
+      ctx.globalAlpha = alphaMultiplier;
+      ctx.drawImage(
+        effect.spriteSheet,
+        chunk.srcX, chunk.srcY, chunk.srcW, chunk.srcH,
+        -chunk.drawW / 2, -chunk.drawH / 2, chunk.drawW, chunk.drawH
+      );
+      ctx.restore();
+    }
+  });
+
+  for (const corpseId of animalCorpseDestructionsToRemove) {
+    activeAnimalCorpseDestructions.delete(corpseId);
+  }
+}
 
 // Get corpse render size based on species (match live animal sizes)
 function getCorpseRenderSize(species: any): { width: number; height: number } {

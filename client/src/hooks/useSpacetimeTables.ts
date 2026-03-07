@@ -32,6 +32,7 @@ import { Identity } from 'spacetimedb';
 import { getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
 import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUtils';
+import { triggerAnimalCorpseDestructionEffect } from '../utils/renderers/animalCorpseRenderingUtils';
 import { triggerBarrelDestructionEffect } from '../utils/renderers/barrelRenderingUtils';
 import { runtimeEngine } from '../engine/runtimeEngine';
 import { recordProjectileDebugEvent } from '../utils/projectileDebug';
@@ -1929,6 +1930,12 @@ export const useSpacetimeTables = ({
                 setAnimalCorpses(prev => new Map(prev).set(newCorpse.id.toString(), newCorpse));
             };
             const handleAnimalCorpseDelete = (ctx: any, corpse: SpacetimeDB.AnimalCorpse) => {
+                const nowMs = Date.now();
+                const despawnAtMs = Number(corpse.despawnAt.microsSinceUnixEpoch / 1000n);
+                const deletedBeforeNaturalDespawn = nowMs < (despawnAtMs - 500);
+                if (corpse.health === 0 || deletedBeforeNaturalDespawn) {
+                    triggerAnimalCorpseDestructionEffect(corpse);
+                }
                 setAnimalCorpses(prev => { const newMap = new Map(prev); newMap.delete(corpse.id.toString()); return newMap; });
             };
 

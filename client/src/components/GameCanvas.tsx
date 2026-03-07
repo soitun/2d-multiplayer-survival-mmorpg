@@ -168,7 +168,7 @@ import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUt
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { renderDronesDirectly, getInterpolatedDrones } from '../utils/renderers/droneRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
-import { renderProjectile, cleanupProjectileTrackingForDeleted, buildProjectileCollisionCircles, getProjectileTrackingKey } from '../utils/renderers/projectileRenderingUtils';
+import { beginProjectileRenderPass, renderProjectile, cleanupProjectileTrackingForDeleted, buildProjectileCollisionCircles, getProjectileTrackingKey } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
 import { setShelterClippingData, setGlobalShadowsEnabled } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
@@ -2158,6 +2158,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!canvas || !maskCanvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    beginProjectileRenderPass(frameStartTime);
 
     // Emergency performance mode removed
 

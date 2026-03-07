@@ -113,9 +113,36 @@ export function shouldIgnoreServerSwing(): boolean {
   return performance.now() < localPlayerSwingGracePeriodEnd;
 }
 
-export function registerLocalPlayerRangedShot(_itemName?: string | null): void {
-  // Intentionally a no-op: local ranged feel is handled by immediate weapon
-  // feedback plus a very short-lived projectile ghost during server handoff.
+const localPlayerLoadedAmmoHideUntilByWeapon = new Map<string, number>();
+
+function getLocalRangedAmmoHideDurationMs(itemName?: string | null): number {
+  switch (itemName) {
+    case 'Crossbow':
+      return 120;
+    case 'Reed Harpoon Gun':
+      return 90;
+    case 'Hunting Bow':
+    default:
+      return 100;
+  }
+}
+
+function shouldHideLocalPlayerLoadedAmmo(itemName: string | null | undefined, nowMs: number): boolean {
+  if (!itemName) return false;
+  const hideUntil = localPlayerLoadedAmmoHideUntilByWeapon.get(itemName) ?? 0;
+  if (hideUntil <= nowMs) {
+    localPlayerLoadedAmmoHideUntilByWeapon.delete(itemName);
+    return false;
+  }
+  return true;
+}
+
+export function registerLocalPlayerRangedShot(itemName?: string | null): void {
+  if (!itemName) return;
+  localPlayerLoadedAmmoHideUntilByWeapon.set(
+    itemName,
+    Date.now() + getLocalRangedAmmoHideDurationMs(itemName)
+  );
 }
 
 // --- Melee Swipe Arc (server-pixel-perfect hitbox indicator) ---
@@ -636,10 +663,7 @@ export const renderEquippedItem = (
   const isRangedWeaponWithVisibleAmmo = itemDef.name === "Hunting Bow" || itemDef.name === "Crossbow" || itemDef.name === "Reed Harpoon Gun";
   if (isRangedWeaponWithVisibleAmmo && equipment.isReadyToFire && equipment.loadedAmmoDefId && itemDefinitions) {
     const isLocalAmmoOwner = !!localPlayerId && player.identity.toHexString() === localPlayerId;
-    if (isLocalAmmoOwner) {
-      // Never draw the local player's nocked ammo sprite. The local player already
-      // gets reticle/weapon feedback, and showing held ammo here can read as a
-      // second in-flight arrow when the projectile itself is also rendered.
+    if (isLocalAmmoOwner && shouldHideLocalPlayerLoadedAmmo(itemDef.name, now_ms)) {
       loadedArrowImage = undefined;
     } else {
     // Reed Harpoon Gun: No reload delay visual - dart shows immediately like a gun
